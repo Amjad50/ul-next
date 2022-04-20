@@ -1,5 +1,5 @@
-use crate::{config::Config, utils::c_callback};
-use std::{ffi::c_void, panic};
+use crate::config::Config;
+use std::ffi::c_void;
 
 pub struct Settings {
     internal: ul_sys::ULSettings,
@@ -105,6 +105,53 @@ impl Monitor {
     }
 }
 
+pub enum Cursor {
+    Alias = ul_sys::ULCursor_kCursor_Alias as isize,
+    Cell = ul_sys::ULCursor_kCursor_Cell as isize,
+    ColumnResize = ul_sys::ULCursor_kCursor_ColumnResize as isize,
+    ContextMenu = ul_sys::ULCursor_kCursor_ContextMenu as isize,
+    Copy = ul_sys::ULCursor_kCursor_Copy as isize,
+    Cross = ul_sys::ULCursor_kCursor_Cross as isize,
+    Custom = ul_sys::ULCursor_kCursor_Custom as isize,
+    EastPanning = ul_sys::ULCursor_kCursor_EastPanning as isize,
+    EastResize = ul_sys::ULCursor_kCursor_EastResize as isize,
+    EastWestResize = ul_sys::ULCursor_kCursor_EastWestResize as isize,
+    Grab = ul_sys::ULCursor_kCursor_Grab as isize,
+    Grabbing = ul_sys::ULCursor_kCursor_Grabbing as isize,
+    Hand = ul_sys::ULCursor_kCursor_Hand as isize,
+    Help = ul_sys::ULCursor_kCursor_Help as isize,
+    IBeam = ul_sys::ULCursor_kCursor_IBeam as isize,
+    MiddlePanning = ul_sys::ULCursor_kCursor_MiddlePanning as isize,
+    Move = ul_sys::ULCursor_kCursor_Move as isize,
+    NoDrop = ul_sys::ULCursor_kCursor_NoDrop as isize,
+    None = ul_sys::ULCursor_kCursor_None as isize,
+    NorthEastPanning = ul_sys::ULCursor_kCursor_NorthEastPanning as isize,
+    NorthEastResize = ul_sys::ULCursor_kCursor_NorthEastResize as isize,
+    NorthEastSouthWestResize = ul_sys::ULCursor_kCursor_NorthEastSouthWestResize as isize,
+    NorthPanning = ul_sys::ULCursor_kCursor_NorthPanning as isize,
+    NorthResize = ul_sys::ULCursor_kCursor_NorthResize as isize,
+    NorthSouthResize = ul_sys::ULCursor_kCursor_NorthSouthResize as isize,
+    NorthWestPanning = ul_sys::ULCursor_kCursor_NorthWestPanning as isize,
+    NorthWestResize = ul_sys::ULCursor_kCursor_NorthWestResize as isize,
+    NorthWestSouthEastResize = ul_sys::ULCursor_kCursor_NorthWestSouthEastResize as isize,
+    NotAllowed = ul_sys::ULCursor_kCursor_NotAllowed as isize,
+    Pointer = ul_sys::ULCursor_kCursor_Pointer as isize,
+    Progress = ul_sys::ULCursor_kCursor_Progress as isize,
+    RowResize = ul_sys::ULCursor_kCursor_RowResize as isize,
+    SouthEastPanning = ul_sys::ULCursor_kCursor_SouthEastPanning as isize,
+    SouthEastResize = ul_sys::ULCursor_kCursor_SouthEastResize as isize,
+    SouthPanning = ul_sys::ULCursor_kCursor_SouthPanning as isize,
+    SouthResize = ul_sys::ULCursor_kCursor_SouthResize as isize,
+    SouthWestPanning = ul_sys::ULCursor_kCursor_SouthWestPanning as isize,
+    SouthWestResize = ul_sys::ULCursor_kCursor_SouthWestResize as isize,
+    VerticalText = ul_sys::ULCursor_kCursor_VerticalText as isize,
+    Wait = ul_sys::ULCursor_kCursor_Wait as isize,
+    WestPanning = ul_sys::ULCursor_kCursor_WestPanning as isize,
+    WestResize = ul_sys::ULCursor_kCursor_WestResize as isize,
+    ZoomIn = ul_sys::ULCursor_kCursor_ZoomIn as isize,
+    ZoomOut = ul_sys::ULCursor_kCursor_ZoomOut as isize,
+}
+
 pub struct WindowFlags {
     pub borderless: bool,
     pub titled: bool,
@@ -139,6 +186,142 @@ impl WindowFlags {
 
 pub struct Window {
     internal: ul_sys::ULWindow,
+
+    close_callback: Option<Box<Box<dyn FnMut() + 'static>>>,
+    resize_callback: Option<Box<Box<dyn FnMut(u32, u32) + 'static>>>,
+}
+
+impl Window {
+    pub fn screen_width(&self) -> u32 {
+        unsafe { ul_sys::ulWindowGetScreenWidth(self.internal) }
+    }
+
+    pub fn width(&self) -> u32 {
+        unsafe { ul_sys::ulWindowGetWidth(self.internal) }
+    }
+
+    pub fn screen_height(&self) -> u32 {
+        unsafe { ul_sys::ulWindowGetScreenHeight(self.internal) }
+    }
+
+    pub fn height(&self) -> u32 {
+        unsafe { ul_sys::ulWindowGetHeight(self.internal) }
+    }
+
+    pub fn move_to(&self, x: i32, y: i32) {
+        unsafe { ul_sys::ulWindowMoveTo(self.internal, x, y) }
+    }
+
+    pub fn move_to_center(&self) {
+        unsafe { ul_sys::ulWindowMoveToCenter(self.internal) }
+    }
+
+    pub fn x(&self) -> i32 {
+        unsafe { ul_sys::ulWindowGetPositionX(self.internal) }
+    }
+
+    pub fn y(&self) -> i32 {
+        unsafe { ul_sys::ulWindowGetPositionY(self.internal) }
+    }
+
+    pub fn is_fullscreen(&self) -> bool {
+        unsafe { ul_sys::ulWindowIsFullscreen(self.internal) }
+    }
+
+    pub fn scale(&self) -> f64 {
+        unsafe { ul_sys::ulWindowGetScale(self.internal) }
+    }
+
+    pub fn set_title(&self, title: &str) {
+        unsafe { ul_sys::ulWindowSetTitle(self.internal, title.as_ptr() as *const i8) }
+    }
+
+    pub fn set_cursor(&self, cursor: Cursor) {
+        unsafe { ul_sys::ulWindowSetCursor(self.internal, cursor as u32) }
+    }
+
+    pub fn show(&self) {
+        unsafe { ul_sys::ulWindowShow(self.internal) }
+    }
+
+    pub fn hide(&self) {
+        unsafe { ul_sys::ulWindowHide(self.internal) }
+    }
+
+    pub fn is_visible(&self) -> bool {
+        unsafe { ul_sys::ulWindowIsVisible(self.internal) }
+    }
+
+    pub fn close(&self) {
+        unsafe { ul_sys::ulWindowClose(self.internal) }
+    }
+
+    pub fn screen_to_pixels(&self, val: i32) -> i32 {
+        unsafe { ul_sys::ulWindowScreenToPixels(self.internal, val) }
+    }
+
+    pub fn pixels_to_screen(&self, val: i32) -> i32 {
+        unsafe { ul_sys::ulWindowPixelsToScreen(self.internal, val) }
+    }
+
+    pub fn set_close_callback<F>(&mut self, callback: F)
+    where
+        F: FnMut() + 'static,
+    {
+        c_callback! {
+            unsafe extern "C" fn window_close_callback(_window: ul_sys::ULWindow);
+        }
+
+        // Note that we need to double-box the callback, because a `*mut FnMut()` is a fat pointer
+        // that can't be cast to a `*const c_void`.
+        let mut callback = Box::new(Box::new(callback) as Box<_>);
+
+        // SAFETY: We're passing a pointer to a function that is guaranteed to be valid for the
+        // lifetime of the app.
+        unsafe {
+            ul_sys::ulWindowSetCloseCallback(
+                self.internal,
+                Some(window_close_callback::<F>),
+                &mut *callback as &mut Box<_> as *mut Box<_> as *mut c_void,
+            );
+        }
+
+        self.close_callback = Some(callback);
+    }
+
+    pub fn set_resize_callback<F>(&mut self, callback: F)
+    where
+        F: FnMut(u32, u32) + 'static,
+    {
+        c_callback! {
+            unsafe extern "C" fn window_resize_callback(_window: ul_sys::ULWindow, width: u32, height:u32): (width: u32, height: u32);
+        }
+
+        // Note that we need to double-box the callback, because a `*mut FnMut()` is a fat pointer
+        // that can't be cast to a `*const c_void`.
+        let mut callback = Box::new(Box::new(callback) as Box<_>);
+
+        // SAFETY: We're passing a pointer to a function that is guaranteed to be valid for the
+        // lifetime of the app.
+        unsafe {
+            ul_sys::ulWindowSetResizeCallback(
+                self.internal,
+                Some(window_resize_callback::<F>),
+                &mut *callback as &mut Box<_> as *mut Box<_> as *mut c_void,
+            );
+        }
+
+        self.resize_callback = Some(callback);
+    }
+
+    //pub fn is_accelerated(&self) -> bool {
+    //}
+    //
+    //pub fn render_buff_id(&self) -> u32 {
+    //}
+    //
+    //pub fn draw_surface(&self, surface: &Surface) {
+    //}
 }
 
 impl Drop for Window {
@@ -157,7 +340,7 @@ pub struct App {
 
     internal: ul_sys::ULApp,
 
-    update_callback: Option<Box<Box<dyn FnMut() + 'static + Send>>>,
+    update_callback: Option<Box<Box<dyn FnMut() + 'static>>>,
 }
 
 impl App {
@@ -210,8 +393,12 @@ impl App {
 
     pub fn set_update_callback<F>(&mut self, callback: F)
     where
-        F: FnMut() + 'static + Send + panic::RefUnwindSafe,
+        F: FnMut() + 'static,
     {
+        c_callback! {
+            unsafe extern "C" fn app_update_callback();
+        }
+
         // Note that we need to double-box the callback, because a `*mut FnMut()` is a fat pointer
         // that can't be cast to a `*const c_void`.
         let mut callback = Box::new(Box::new(callback) as Box<_>);
@@ -221,7 +408,7 @@ impl App {
         unsafe {
             ul_sys::ulAppSetUpdateCallback(
                 self.internal,
-                Some(c_callback::<F>),
+                Some(app_update_callback::<F>),
                 &mut *callback as &mut Box<_> as *mut Box<_> as *mut c_void,
             );
         }
@@ -254,7 +441,11 @@ impl App {
             )
         };
 
-        Window { internal }
+        Window {
+            internal,
+            close_callback: None,
+            resize_callback: None,
+        }
     }
 }
 
@@ -277,20 +468,14 @@ fn test_app() {
     path.push_str(&std::env::current_dir().unwrap().to_string_lossy());
 
     // set the file system path to the current location, to access resources
-    let mut app = App::new(
+    let app = App::new(
         Some(Settings::start().file_system_path(&path).build()),
         None,
     );
 
-    let mut i = 0;
-    app.set_update_callback(move || {
-        i += 1;
-        println!("update {}", i);
-    });
-
     // we must assign the window to a variable, otherwise it will be dropped
     // TODO: maybe we should keep the window in the app?
-    let window = app.create_window(
+    let mut window = app.create_window(
         1280,
         720,
         false,
@@ -303,8 +488,19 @@ fn test_app() {
         },
     );
 
-    // this will never return
-    app.run();
+    let app = std::rc::Rc::new(app);
+    let app_clone = app.clone();
+    window.set_close_callback(move || {
+        assert!(app_clone.is_running());
 
-    app.quit();
+        println!("close");
+        app_clone.quit();
+    });
+
+    window.set_resize_callback(|width, height| {
+        println!("resize {} {}", width, height);
+    });
+
+    // main loop
+    app.run();
 }
