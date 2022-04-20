@@ -324,10 +324,118 @@ impl Window {
     //}
 }
 
+impl Window {
+    pub fn create_overlay(&self, width: u32, height: u32, x: i32, y: i32) -> Overlay {
+        unsafe {
+            let overlay = ul_sys::ulCreateOverlay(self.internal, width, height, x, y);
+            let view = View {
+                internal: ul_sys::ulOverlayGetView(overlay),
+            };
+            Overlay {
+                internal: overlay,
+                view,
+            }
+        }
+    }
+
+    pub fn create_overlay_with_view(&self, view: View, x: i32, y: i32) -> Overlay {
+        unsafe {
+            let overlay = ul_sys::ulCreateOverlayWithView(self.internal, view.internal, x, y);
+            Overlay {
+                internal: overlay,
+                view,
+            }
+        }
+    }
+}
+
 impl Drop for Window {
     fn drop(&mut self) {
         unsafe {
             ul_sys::ulDestroyWindow(self.internal);
+        }
+    }
+}
+
+pub struct View {
+    internal: ul_sys::ULView,
+}
+
+impl Drop for View {
+    fn drop(&mut self) {
+        unsafe {
+            ul_sys::ulDestroyView(self.internal);
+        }
+    }
+}
+
+pub struct Overlay {
+    internal: ul_sys::ULOverlay,
+
+    view: View,
+}
+
+impl Overlay {
+    pub fn view(&self) -> &View {
+        &self.view
+    }
+
+    pub fn width(&self) -> u32 {
+        unsafe { ul_sys::ulOverlayGetWidth(self.internal) }
+    }
+
+    pub fn height(&self) -> u32 {
+        unsafe { ul_sys::ulOverlayGetHeight(self.internal) }
+    }
+
+    pub fn x(&self) -> i32 {
+        unsafe { ul_sys::ulOverlayGetX(self.internal) }
+    }
+
+    pub fn y(&self) -> i32 {
+        unsafe { ul_sys::ulOverlayGetY(self.internal) }
+    }
+
+    pub fn is_hidden(&self) -> bool {
+        unsafe { ul_sys::ulOverlayIsHidden(self.internal) }
+    }
+
+    pub fn show(&self) {
+        unsafe { ul_sys::ulOverlayShow(self.internal) }
+    }
+
+    pub fn hide(&self) {
+        unsafe { ul_sys::ulOverlayHide(self.internal) }
+    }
+
+    pub fn has_focus(&self) -> bool {
+        unsafe { ul_sys::ulOverlayHasFocus(self.internal) }
+    }
+
+    pub fn focus(&self) {
+        unsafe { ul_sys::ulOverlayFocus(self.internal) }
+    }
+
+    pub fn unfocus(&self) {
+        unsafe { ul_sys::ulOverlayUnfocus(self.internal) }
+    }
+
+    pub fn move_to(&self, x: i32, y: i32) {
+        unsafe { ul_sys::ulOverlayMoveTo(self.internal, x, y) }
+    }
+
+    pub fn resize(&self, width: u32, height: u32) {
+        unsafe { ul_sys::ulOverlayResize(self.internal, width, height) }
+    }
+
+    //pub fn need_repaint(&self) -> bool {
+    //}
+}
+
+impl Drop for Overlay {
+    fn drop(&mut self) {
+        unsafe {
+            ul_sys::ulDestroyOverlay(self.internal);
         }
     }
 }
