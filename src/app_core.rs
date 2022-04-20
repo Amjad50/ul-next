@@ -1,6 +1,7 @@
-use crate::config::Config;
+use crate::{config::Config, utils::c_callback};
+use std::{ffi::c_void, panic};
 
-struct Settings {
+pub struct Settings {
     internal: ul_sys::ULSettings,
 }
 
@@ -9,7 +10,7 @@ impl Settings {
         SettingsBuilder::default()
     }
 
-    pub fn to_ul(&self) -> ul_sys::ULSettings {
+    pub(crate) unsafe fn to_ul(&self) -> ul_sys::ULSettings {
         self.internal
     }
 }
@@ -23,7 +24,7 @@ impl Drop for Settings {
 }
 
 #[derive(Default)]
-struct SettingsBuilder {
+pub struct SettingsBuilder {
     developer_name: Option<String>,
     app_name: Option<String>,
     file_system_path: Option<String>,
@@ -82,7 +83,7 @@ impl SettingsBuilder {
     }
 }
 
-struct Monitor {
+pub struct Monitor {
     internal: ul_sys::ULMonitor,
 }
 
@@ -99,7 +100,7 @@ impl Monitor {
         unsafe { ul_sys::ulMonitorGetHeight(self.internal) }
     }
 
-    pub fn to_ul(&self) -> ul_sys::ULMonitor {
+    pub(crate) unsafe fn to_ul(&self) -> ul_sys::ULMonitor {
         self.internal
     }
 }
@@ -136,7 +137,7 @@ impl WindowFlags {
     }
 }
 
-struct Window {
+pub struct Window {
     internal: ul_sys::ULWindow,
 }
 
@@ -148,13 +149,15 @@ impl Drop for Window {
     }
 }
 
-struct App {
+pub struct App {
     config: Config,
     settings: Settings,
 
     monitor: Monitor,
 
     internal: ul_sys::ULApp,
+
+    update_callback: Option<Box<Box<dyn FnMut() + 'static + Send>>>,
 }
 
 impl App {
@@ -181,13 +184,17 @@ impl App {
                 settings,
                 internal: app_internal,
                 monitor,
-                //phantom: PhantomData,
+                update_callback: None,
             }
         }
     }
 
     pub fn settings(&self) -> &Settings {
         &self.settings
+    }
+
+    pub fn config(&self) -> &Config {
+        &self.config
     }
 
     pub fn main_monitor(&self) -> &Monitor {
@@ -200,6 +207,27 @@ impl App {
 
     //pub fn renderer(&self) -> bool {
     //}
+
+    pub fn set_update_callback<F>(&mut self, callback: F)
+    where
+        F: FnMut() + 'static + Send + panic::RefUnwindSafe,
+    {
+        // Note that we need to double-box the callback, because a `*mut FnMut()` is a fat pointer
+        // that can't be cast to a `*const c_void`.
+        let mut callback = Box::new(Box::new(callback) as Box<_>);
+
+        // SAFETY: We're passing a pointer to a function that is guaranteed to be valid for the
+        // lifetime of the app.
+        unsafe {
+            ul_sys::ulAppSetUpdateCallback(
+                self.internal,
+                Some(c_callback::<F>),
+                &mut *callback as &mut Box<_> as *mut Box<_> as *mut c_void,
+            );
+        }
+
+        self.update_callback = Some(callback);
+    }
 
     pub fn run(&self) {
         unsafe { ul_sys::ulAppRun(self.internal) }
@@ -249,10 +277,16 @@ fn test_app() {
     path.push_str(&std::env::current_dir().unwrap().to_string_lossy());
 
     // set the file system path to the current location, to access resources
-    let app = App::new(
+    let mut app = App::new(
         Some(Settings::start().file_system_path(&path).build()),
         None,
     );
+
+    let mut i = 0;
+    app.set_update_callback(move || {
+        i += 1;
+        println!("update {}", i);
+    });
 
     // we must assign the window to a variable, otherwise it will be dropped
     // TODO: maybe we should keep the window in the app?

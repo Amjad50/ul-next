@@ -18,7 +18,7 @@ impl Config {
         ConfigBuilder::default()
     }
 
-    pub fn to_ul(&self) -> ul_sys::ULConfig {
+    pub(crate) unsafe fn to_ul(&self) -> ul_sys::ULConfig {
         self.internal
     }
 }
