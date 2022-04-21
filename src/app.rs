@@ -256,13 +256,20 @@ fn test_app() {
         },
     );
 
-    let overlay = std::rc::Rc::new(window.create_overlay(window.width(), window.height(), 0, 0));
-    let overlay_clone = overlay.clone();
+    let overlay = window.create_overlay(window.width() / 2, window.height(), 0, 0);
+    overlay.view().load_url("https://animejs.com/");
+
+    // create inspector view (must have `inspector` folder with the resources needed
+    // in the filesystem path).
+    let inspector_view = overlay.view().create_inspector_view();
+    inspector_view.resize(window.width() / 2, window.height());
+    let inspector_overlay =
+        window.create_overlay_with_view(inspector_view, window.width() as i32 / 2, 0);
 
     let app = std::rc::Rc::new(app);
     let app_clone = app.clone();
 
-    window.set_title("anime website");
+    window.set_title("animejs website");
 
     window.set_close_callback(move || {
         assert!(app_clone.is_running());
@@ -272,11 +279,11 @@ fn test_app() {
     });
 
     window.set_resize_callback(move |width, height| {
-        overlay_clone.resize(width, height);
+        overlay.resize(width / 2, height);
+        inspector_overlay.move_to(width as i32 / 2, 0);
+        inspector_overlay.resize(width / 2, height);
         println!("resize {} {}", width, height);
     });
-
-    //overlay.view().load_url("https://animejs.com/");
 
     // main loop
     app.run();

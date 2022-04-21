@@ -138,11 +138,15 @@ impl ViewConfigBuilder {
 
 pub struct View {
     internal: ul_sys::ULView,
+    need_to_destroy: bool,
 }
 
 impl View {
-    pub(crate) unsafe fn from_raw(raw: ul_sys::ULView) -> Self {
-        Self { internal: raw }
+    pub(crate) unsafe fn from_raw(raw: ul_sys::ULView, need_to_destroy: bool) -> Self {
+        Self {
+            internal: raw,
+            need_to_destroy,
+        }
     }
 
     pub(crate) unsafe fn to_ul(&self) -> ul_sys::ULView {
@@ -290,14 +294,30 @@ impl View {
     //pub fn fire_scroll_event(&self, key_event: ) {
     //    todo!()
     //}
+
+    pub fn set_needs_paint(&self, needs_paint: bool) {
+        unsafe { ul_sys::ulViewSetNeedsPaint(self.internal, needs_paint) }
+    }
+
+    pub fn needs_paint(&self) -> bool {
+        unsafe { ul_sys::ulViewGetNeedsPaint(self.internal) }
+    }
+
+    pub fn create_inspector_view(&self) -> View {
+        unsafe {
+            let inspector_view = ul_sys::ulViewCreateInspectorView(self.internal);
+            // we need to destroy the view when its dropped, its now owned by anyone
+            View::from_raw(inspector_view, true)
+        }
+    }
 }
 
 impl Drop for View {
     fn drop(&mut self) {
         unsafe {
-            //the overlay is freeing this, so we don't need to
-            //TODO: check if we need to free it if we created the view manually
-            //ul_sys::ulDestroyView(self.internal);
+            if self.need_to_destroy {
+                ul_sys::ulDestroyView(self.internal);
+            }
         }
     }
 }
