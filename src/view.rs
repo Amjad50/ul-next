@@ -1,4 +1,7 @@
-use crate::string::UlString;
+use crate::{
+    event::{KeyEvent, MouseEvent, ScrollEvent},
+    string::UlString,
+};
 
 pub struct ViewConfig {
     internal: ul_sys::ULViewConfig,
@@ -285,15 +288,17 @@ impl View {
         unsafe { ul_sys::ulViewHasInputFocus(self.internal) }
     }
 
-    //pub fn fire_key_event(&self, key_event: ) {
-    //    todo!()
-    //}
-    //pub fn fire_mouse_event(&self, key_event: ) {
-    //    todo!()
-    //}
-    //pub fn fire_scroll_event(&self, key_event: ) {
-    //    todo!()
-    //}
+    pub fn fire_key_event(&self, key_event: KeyEvent) {
+        unsafe { ul_sys::ulViewFireKeyEvent(self.internal, key_event.to_ul()) }
+    }
+
+    pub fn fire_mouse_event(&self, mouse_event: MouseEvent) {
+        unsafe { ul_sys::ulViewFireMouseEvent(self.internal, mouse_event.to_ul()) }
+    }
+
+    pub fn fire_scroll_event(&self, scroll_event: ScrollEvent) {
+        unsafe { ul_sys::ulViewFireScrollEvent(self.internal, scroll_event.to_ul()) }
+    }
 
     pub fn set_needs_paint(&self, needs_paint: bool) {
         unsafe { ul_sys::ulViewSetNeedsPaint(self.internal, needs_paint) }

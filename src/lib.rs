@@ -5,6 +5,7 @@ pub(crate) mod utils;
 
 pub mod app;
 pub mod config;
+pub mod event;
 pub mod overlay;
 pub mod string;
 pub mod view;
