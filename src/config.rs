@@ -1,6 +1,6 @@
 pub enum FaceWinding {
     Clockwise = ul_sys::ULFaceWinding_kFaceWinding_Clockwise as isize,
-    CounterClockwise = ul_sys::ULFaceWinding_kFaceWindow_CounterClockwise as isize,
+    CounterClockwise = ul_sys::ULFaceWinding_kFaceWinding_CounterClockwise as isize,
 }
 
 pub enum FontHinting {
@@ -34,7 +34,7 @@ impl Drop for Config {
 #[derive(Default)]
 pub struct ConfigBuilder {
     cache_path: Option<String>,
-    //resource_path_prefix: Option<String>,
+    resource_path_prefix: Option<String>,
     face_winding: Option<FaceWinding>,
     font_hinting: Option<FontHinting>,
     font_gamma: Option<f64>,
@@ -48,13 +48,19 @@ pub struct ConfigBuilder {
     override_ram_size: Option<u32>,
     min_large_heap_size: Option<u32>,
     min_small_heap_size: Option<u32>,
-    //num_renderer_threads: Option<u32>,
-    //max_update_time: Option<f64>,
+    num_renderer_threads: Option<u32>,
+    max_update_time: Option<f64>,
+    bitmap_alignment: Option<f64>,
 }
 
 impl ConfigBuilder {
     pub fn cache_path(mut self, path: &str) -> Self {
         self.cache_path = Some(path.to_string());
+        self
+    }
+
+    pub fn resource_path_prefix(mut self, path: &str) -> Self {
+        self.resource_path_prefix = Some(path.to_string());
         self
     }
 
@@ -123,15 +129,30 @@ impl ConfigBuilder {
         self
     }
 
+    pub fn num_renderer_threads(mut self, threads: u32) -> Self {
+        self.num_renderer_threads = Some(threads);
+        self
+    }
+
+    pub fn max_update_time(mut self, time: f64) -> Self {
+        self.max_update_time = Some(time);
+        self
+    }
+
+    pub fn bitmap_alignment(mut self, alignment: f64) -> Self {
+        self.bitmap_alignment = Some(alignment);
+        self
+    }
+
     pub fn build(self) -> Config {
         let internal = unsafe { ul_sys::ulCreateConfig() };
 
         set_config_str!(internal, self.cache_path, ulConfigSetCachePath);
-        //set_config_str!(
-        //    internal,
-        //    self.resource_path_prefix,
-        //    ulConfigSetResourcePathPrefix
-        //);
+        set_config_str!(
+            internal,
+            self.resource_path_prefix,
+            ulConfigSetResourcePathPrefix
+        );
         set_config!(
             internal,
             self.face_winding.map(|x| x as u32),
@@ -169,12 +190,13 @@ impl ConfigBuilder {
             self.min_small_heap_size,
             ulConfigSetMinSmallHeapSize
         );
-        //set_config!(
-        //    internal,
-        //    self.num_renderer_threads,
-        //    ulConfigSetNumRendererThreads
-        //);
-        //set_config!(internal, self.max_update_time, ulConfigSetMaxUpdateTime);
+        set_config!(
+            internal,
+            self.num_renderer_threads,
+            ulConfigSetNumRendererThreads
+        );
+        set_config!(internal, self.max_update_time, ulConfigSetMaxUpdateTime);
+        set_config!(internal, self.bitmap_alignment, ulConfigSetBitmapAlignment);
 
         Config { internal }
     }

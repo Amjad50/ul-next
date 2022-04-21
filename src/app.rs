@@ -275,6 +275,15 @@ fn test_app() {
     let app = std::rc::Rc::new(app);
     let app_clone = app.clone();
 
+    let session = app.renderer().default_session();
+    println!(
+        "session(id: {}, name: {}, is_persistent: {}, disk_path: {})",
+        session.id(),
+        session.name(),
+        session.is_persistent(),
+        session.disk_path()
+    );
+
     window.set_title("animejs website");
 
     window.set_close_callback(move || {

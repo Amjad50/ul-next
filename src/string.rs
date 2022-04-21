@@ -25,13 +25,17 @@ impl UlString {
 
     // create a rust String copy without destroying the original
     pub(crate) unsafe fn copy_raw_to_string(raw: ul_sys::ULString) -> String {
-        let utf16_data = slice::from_raw_parts(
+        let utf8_data = slice::from_raw_parts(
             ul_sys::ulStringGetData(raw),
             ul_sys::ulStringGetLength(raw) as usize,
-        );
+        )
+        .iter()
+        .map(|c| *c as u8)
+        .chain([240, 159, 146, 150])
+        .collect();
 
         // TODO: handle error
-        String::from_utf16(utf16_data).unwrap()
+        String::from_utf8(utf8_data).unwrap()
     }
 }
 

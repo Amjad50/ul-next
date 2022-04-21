@@ -1,5 +1,6 @@
 use crate::{
     event::{KeyEvent, MouseEvent, ScrollEvent},
+    render_target::RenderTarget,
     session::Session,
     string::UlString,
 };
@@ -202,24 +203,29 @@ impl View {
         unsafe { ul_sys::ulViewGetHeight(self.internal) }
     }
 
-    //pub fn device_scale(&self) -> f64 {
-    //}
-    //pub fn set_device_scale(&self, scale: f64) {
-    //}
+    pub fn device_scale(&self) -> f64 {
+        unsafe { ul_sys::ulViewGetDeviceScale(self.internal) }
+    }
 
-    //pub fn is_accelerated(&self) -> bool {
-    //}
+    pub fn set_device_scale(&self, scale: f64) {
+        unsafe { ul_sys::ulViewSetDeviceScale(self.internal, scale) }
+    }
 
-    //pub fn is_transparent(&self) -> bool {
-    //}
+    pub fn is_accelerated(&self) -> bool {
+        unsafe { ul_sys::ulViewIsAccelerated(self.internal) }
+    }
+
+    pub fn is_transparent(&self) -> bool {
+        unsafe { ul_sys::ulViewIsTransparent(self.internal) }
+    }
 
     pub fn is_loading(&self) -> bool {
         unsafe { ul_sys::ulViewIsLoading(self.internal) }
     }
 
-    //pub fn render_target(&self) -> RenderTarget {
-    //    unsafe { RenderTarget::from_raw(ul_sys::ulViewGetRenderTarget(self.internal)) }
-    //}
+    pub fn render_target(&self) -> RenderTarget {
+        unsafe { RenderTarget::from(ul_sys::ulViewGetRenderTarget(self.internal)) }
+    }
 
     //pub fn surface(&self) -> Surface {
     //    unsafe { Surface::from_raw(ul_sys::ulViewGetSurface(self.internal)) }
