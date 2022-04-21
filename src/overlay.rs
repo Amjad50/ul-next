@@ -16,7 +16,7 @@ impl Overlay {
     ) -> Self {
         let overlay = ul_sys::ulCreateOverlay(window, width, height, x, y);
         // the overlay owns the view, we can't need to destroy it on drop
-        let view = View::from_raw(ul_sys::ulOverlayGetView(overlay), false);
+        let view = View::from_raw(ul_sys::ulOverlayGetView(overlay));
         Self {
             internal: overlay,
             view,

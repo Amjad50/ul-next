@@ -1,5 +1,6 @@
 use crate::{
     event::{KeyEvent, MouseEvent, ScrollEvent},
+    session::Session,
     string::UlString,
 };
 
@@ -145,10 +146,31 @@ pub struct View {
 }
 
 impl View {
-    pub(crate) unsafe fn from_raw(raw: ul_sys::ULView, need_to_destroy: bool) -> Self {
+    pub(crate) unsafe fn from_raw(raw: ul_sys::ULView) -> Self {
         Self {
             internal: raw,
-            need_to_destroy,
+            need_to_destroy: false,
+        }
+    }
+
+    pub(crate) unsafe fn create(
+        renderer: ul_sys::ULRenderer,
+        width: u32,
+        height: u32,
+        view_config: &ViewConfig,
+        session: Option<Session>,
+    ) -> Self {
+        let internal = ul_sys::ulCreateView(
+            renderer,
+            width,
+            height,
+            view_config.to_ul(),
+            session.map(|s| s.to_ul()).unwrap_or(std::ptr::null_mut()),
+        );
+
+        Self {
+            internal,
+            need_to_destroy: true,
         }
     }
 
@@ -312,15 +334,18 @@ impl View {
         unsafe {
             let inspector_view = ul_sys::ulViewCreateInspectorView(self.internal);
             // we need to destroy the view when its dropped, its now owned by anyone
-            View::from_raw(inspector_view, true)
+            View {
+                internal: inspector_view,
+                need_to_destroy: true,
+            }
         }
     }
 }
 
 impl Drop for View {
     fn drop(&mut self) {
-        unsafe {
-            if self.need_to_destroy {
+        if self.need_to_destroy {
+            unsafe {
                 ul_sys::ulDestroyView(self.internal);
             }
         }

@@ -1,4 +1,5 @@
 use crate::config::Config;
+use crate::renderer::Renderer;
 use crate::window::{Window, WindowFlags};
 use std::ffi::c_void;
 
@@ -85,6 +86,7 @@ impl SettingsBuilder {
 }
 
 pub struct Monitor {
+    // This is managed by the `App`, so we don't need to free it.
     internal: ul_sys::ULMonitor,
 }
 
@@ -111,6 +113,7 @@ pub struct App {
     settings: Settings,
 
     monitor: Monitor,
+    renderer: Renderer,
 
     internal: ul_sys::ULApp,
 
@@ -135,12 +138,14 @@ impl App {
             let monitor = Monitor {
                 internal: ul_sys::ulAppGetMainMonitor(app_internal),
             };
+            let renderer = Renderer::from_raw(ul_sys::ulAppGetRenderer(app_internal));
 
             Self {
                 config,
                 settings,
                 internal: app_internal,
                 monitor,
+                renderer,
                 update_callback: None,
             }
         }
@@ -162,8 +167,9 @@ impl App {
         unsafe { ul_sys::ulAppIsRunning(self.internal) }
     }
 
-    //pub fn renderer(&self) -> bool {
-    //}
+    pub fn renderer(&self) -> &Renderer {
+        &self.renderer
+    }
 
     pub fn set_update_callback<F>(&mut self, callback: F)
     where
