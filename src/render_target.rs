@@ -1,3 +1,5 @@
+use crate::rect::Rect;
+
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]
 pub enum BitmapFormat {
@@ -36,14 +38,6 @@ impl TryFrom<ul_sys::ULBitmapFormat> for BitmapFormat {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct Rect {
-    pub left: f32,
-    pub top: f32,
-    pub right: f32,
-    pub bottom: f32,
-}
-
-#[derive(Clone, Copy, Debug)]
 pub struct RenderTarget {
     pub is_empty: bool,
     pub width: u32,
@@ -52,7 +46,7 @@ pub struct RenderTarget {
     pub texture_width: u32,
     pub texture_height: u32,
     pub texture_format: BitmapFormat,
-    pub uv_coords: Rect,
+    pub uv_coords: Rect<f32>,
     pub render_buffer_id: u32,
 }
 
@@ -66,12 +60,7 @@ impl From<ul_sys::ULRenderTarget> for RenderTarget {
             texture_width: rt.texture_width,
             texture_height: rt.texture_height,
             texture_format: BitmapFormat::try_from(rt.texture_format).unwrap(),
-            uv_coords: Rect {
-                left: rt.uv_coords.left,
-                top: rt.uv_coords.top,
-                right: rt.uv_coords.right,
-                bottom: rt.uv_coords.bottom,
-            },
+            uv_coords: rt.uv_coords.into(),
             render_buffer_id: rt.render_buffer_id,
         }
     }

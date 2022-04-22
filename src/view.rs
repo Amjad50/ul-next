@@ -3,6 +3,7 @@ use crate::{
     render_target::RenderTarget,
     session::Session,
     string::UlString,
+    surface::Surface,
 };
 
 pub struct ViewConfig {
@@ -223,13 +224,28 @@ impl View {
         unsafe { ul_sys::ulViewIsLoading(self.internal) }
     }
 
-    pub fn render_target(&self) -> RenderTarget {
-        unsafe { RenderTarget::from(ul_sys::ulViewGetRenderTarget(self.internal)) }
+    pub fn render_target(&self) -> Option<RenderTarget> {
+        if self.is_accelerated() {
+            Some(unsafe { RenderTarget::from(ul_sys::ulViewGetRenderTarget(self.internal)) })
+        } else {
+            None
+        }
     }
 
-    //pub fn surface(&self) -> Surface {
-    //    unsafe { Surface::from_raw(ul_sys::ulViewGetSurface(self.internal)) }
-    //}
+    pub fn surface(&self) -> Option<Surface> {
+        if !self.is_accelerated() {
+            unsafe {
+                let surface = ul_sys::ulViewGetSurface(self.internal);
+                if surface.is_null() {
+                    None
+                } else {
+                    Some(Surface::from_raw(surface))
+                }
+            }
+        } else {
+            None
+        }
+    }
 
     pub fn load_html(&self, html: &str) {
         unsafe {
