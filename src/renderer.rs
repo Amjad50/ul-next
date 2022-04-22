@@ -1,7 +1,6 @@
 use crate::{
     config::Config,
     session::Session,
-    string::UlString,
     view::{View, ViewConfig},
 };
 
@@ -9,21 +8,29 @@ pub struct Renderer {
     internal: ul_sys::ULRenderer,
 
     need_to_destroy: bool,
+
+    default_session: Session,
 }
 
 impl Renderer {
     pub(crate) unsafe fn from_raw(raw: ul_sys::ULRenderer) -> Self {
+        let default_session = Session::from_raw(ul_sys::ulDefaultSession(raw));
+
         Self {
             internal: raw,
             need_to_destroy: false,
+            default_session,
         }
     }
 
     pub fn create(config: Config) -> Self {
         let internal = unsafe { ul_sys::ulCreateRenderer(config.to_ul()) };
+        let default_session = unsafe { Session::from_raw(ul_sys::ulDefaultSession(internal)) };
+
         Self {
             internal,
             need_to_destroy: true,
+            default_session,
         }
     }
 }
@@ -49,8 +56,8 @@ impl Renderer {
         unsafe { Session::create(self.internal, is_persistent, name) }
     }
 
-    pub fn default_session(&self) -> Session {
-        unsafe { Session::from_raw(ul_sys::ulDefaultSession(self.internal)) }
+    pub fn default_session(&self) -> &Session {
+        &self.default_session
     }
 
     pub fn create_view(
