@@ -1,7 +1,6 @@
 use crate::config::Config;
 use crate::renderer::Renderer;
 use crate::window::{Window, WindowFlags};
-use std::ffi::c_void;
 
 pub struct Settings {
     internal: ul_sys::ULSettings,
@@ -116,8 +115,6 @@ pub struct App {
     renderer: Renderer,
 
     internal: ul_sys::ULApp,
-
-    update_callback: Option<Box<Box<dyn FnMut() + 'static>>>,
 }
 
 impl App {
@@ -146,7 +143,6 @@ impl App {
                 internal: app_internal,
                 monitor,
                 renderer,
-                update_callback: None,
             }
         }
     }
@@ -171,29 +167,10 @@ impl App {
         &self.renderer
     }
 
-    pub fn set_update_callback<F>(&mut self, callback: F)
-    where
-        F: FnMut() + 'static,
-    {
-        c_callback! {
-            unsafe extern "C" fn app_update_callback();
+    set_callback! {
+        pub fn set_update_callback(&self, callback: FnMut()) {
+            ulAppSetUpdateCallback();
         }
-
-        // Note that we need to double-box the callback, because a `*mut FnMut()` is a fat pointer
-        // that can't be cast to a `*const c_void`.
-        let mut callback = Box::new(Box::new(callback) as Box<_>);
-
-        // SAFETY: We're passing a pointer to a function that is guaranteed to be valid for the
-        // lifetime of the app.
-        unsafe {
-            ul_sys::ulAppSetUpdateCallback(
-                self.internal,
-                Some(app_update_callback::<F>),
-                &mut *callback as &mut Box<_> as *mut Box<_> as *mut c_void,
-            );
-        }
-
-        self.update_callback = Some(callback);
     }
 
     pub fn run(&self) {
@@ -247,9 +224,7 @@ fn test_app() {
         None,
     );
 
-    // we must assign the window to a variable, otherwise it will be dropped
-    // TODO: maybe we should keep the window in the app?
-    let mut window = app.create_window(
+    let window = app.create_window(
         1280,
         720,
         false,

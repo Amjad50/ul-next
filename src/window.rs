@@ -1,7 +1,4 @@
-use std::{
-    self,
-    ffi::{c_void, CString},
-};
+use std::{self, ffi::CString};
 
 use crate::{overlay::Overlay, view::View};
 
@@ -86,9 +83,6 @@ impl WindowFlags {
 
 pub struct Window {
     internal: ul_sys::ULWindow,
-
-    close_callback: Option<Box<Box<dyn FnMut() + 'static>>>,
-    resize_callback: Option<Box<Box<dyn FnMut(u32, u32) + 'static>>>,
 }
 
 impl Window {
@@ -107,11 +101,7 @@ impl Window {
             window_flags.to_u32(),
         );
 
-        Self {
-            internal,
-            close_callback: None,
-            resize_callback: None,
-        }
+        Self { internal }
     }
 
     pub fn screen_width(&self) -> u32 {
@@ -187,54 +177,16 @@ impl Window {
         unsafe { ul_sys::ulWindowPixelsToScreen(self.internal, val) }
     }
 
-    pub fn set_close_callback<F>(&mut self, callback: F)
-    where
-        F: FnMut() + 'static,
-    {
-        c_callback! {
-            unsafe extern "C" fn window_close_callback(_window: ul_sys::ULWindow);
+    set_callback! {
+        pub fn set_close_callback(&self, callback: FnMut()) {
+           ulWindowSetCloseCallback(_window: ul_sys::ULWindow);
         }
-
-        // Note that we need to double-box the callback, because a `*mut FnMut()` is a fat pointer
-        // that can't be cast to a `*const c_void`.
-        let mut callback = Box::new(Box::new(callback) as Box<_>);
-
-        // SAFETY: We're passing a pointer to a function that is guaranteed to be valid for the
-        // lifetime of the app.
-        unsafe {
-            ul_sys::ulWindowSetCloseCallback(
-                self.internal,
-                Some(window_close_callback::<F>),
-                &mut *callback as &mut Box<_> as *mut Box<_> as *mut c_void,
-            );
-        }
-
-        self.close_callback = Some(callback);
     }
 
-    pub fn set_resize_callback<F>(&mut self, callback: F)
-    where
-        F: FnMut(u32, u32) + 'static,
-    {
-        c_callback! {
-            unsafe extern "C" fn window_resize_callback(_window: ul_sys::ULWindow, width: u32, height:u32): (width: u32, height: u32);
+    set_callback! {
+        pub fn set_resize_callback(&self, callback: FnMut(width: u32, height: u32)) {
+            ulWindowSetResizeCallback(_window: ul_sys::ULWindow, width: u32, height: u32);
         }
-
-        // Note that we need to double-box the callback, because a `*mut FnMut()` is a fat pointer
-        // that can't be cast to a `*const c_void`.
-        let mut callback = Box::new(Box::new(callback) as Box<_>);
-
-        // SAFETY: We're passing a pointer to a function that is guaranteed to be valid for the
-        // lifetime of the app.
-        unsafe {
-            ul_sys::ulWindowSetResizeCallback(
-                self.internal,
-                Some(window_resize_callback::<F>),
-                &mut *callback as &mut Box<_> as *mut Box<_> as *mut c_void,
-            );
-        }
-
-        self.resize_callback = Some(callback);
     }
 
     //pub fn is_accelerated(&self) -> bool {

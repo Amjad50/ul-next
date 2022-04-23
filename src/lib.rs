@@ -1,7 +1,7 @@
 #[macro_use]
 pub(crate) mod config_macros;
 #[macro_use]
-pub(crate) mod utils;
+pub(crate) mod callback_macros;
 
 pub mod app;
 pub mod config;
