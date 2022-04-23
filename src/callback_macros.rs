@@ -23,7 +23,10 @@ macro_rules! ffi_unwrap {
 macro_rules! c_callback {
     {
         $(#[$attr:meta])*
-        $vis:vis unsafe extern "C" fn $name:ident ($($c_arg:ident: $c_arg_ty:ty),*) $(: ($($arg:ident: $arg_ty:ty),*))?;
+        $vis:vis unsafe extern "C" fn $name:ident ($($c_arg:ident: $c_arg_ty:ty),*) $(: ($($arg:ident: $arg_ty:ty),*))?
+        {
+            $($body:tt)*
+        }
     } => {
         // Source: https://users.rust-lang.org/t/callback-based-c-ffi/26583/5
         //
@@ -43,6 +46,8 @@ macro_rules! c_callback {
             let at_env_raw_ptr: *mut ::std::boxed::Box<Env> = callback_data as *mut ::std::boxed::Box<Env>;
             let callback: &mut ::std::boxed::Box<Env> = ffi_unwrap!(at_env_raw_ptr.as_mut(), "null ptr",);
 
+            $($body)*
+
             // For each given Env type parameter,
             // Rust knows how to call this since it is using the static address
             // <Env as FnMut<_>>::call_mut(at_env, result, data)
@@ -55,8 +60,10 @@ macro_rules! c_callback {
 macro_rules! set_callback {
     {
         $(#[$attr:meta])*
-        $vis:vis fn $name:ident(&self, callback: FnMut($($($arg:ident: $arg_ty:ty),+)?)) {
-              $ul_callback_setter:ident($($ul_arg:ident: $ul_arg_ty:ty),*);
+        $vis:vis fn $name:ident(&self, callback: FnMut($($($arg:ident: $arg_ty:ty),+)?)):
+              $ul_callback_setter:ident($($ul_arg:ident: $ul_arg_ty:ty),*)
+        {
+            $($body:tt)*
         }
     } => {
         $(#[$attr])*
@@ -65,7 +72,10 @@ macro_rules! set_callback {
             F: ::std::ops::FnMut($($($arg_ty),*)?) + 'static,
         {
             c_callback! {
-                unsafe extern "C" fn trampoline($($ul_arg: $ul_arg_ty),*) $(: ($($arg: $arg_ty),+))?;
+                unsafe extern "C" fn trampoline($($ul_arg: $ul_arg_ty),*) $(: ($($arg: $arg_ty),+))?
+                {
+                    $($body)*
+                }
             }
 
             // Note that we need to double-box the callback, because a `*mut FnMut()` is a fat pointer

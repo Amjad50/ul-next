@@ -168,8 +168,8 @@ impl App {
     }
 
     set_callback! {
-        pub fn set_update_callback(&self, callback: FnMut()) {
-            ulAppSetUpdateCallback();
+        pub fn set_update_callback(&self, callback: FnMut()) :
+            ulAppSetUpdateCallback() {
         }
     }
 
@@ -261,14 +261,14 @@ fn test_app() {
 
     window.set_title("animejs website");
 
-    window.set_close_callback(move || {
+    window.set_close_callback(move |_w| {
         assert!(app_clone.is_running());
 
         println!("close");
         app_clone.quit();
     });
 
-    window.set_resize_callback(move |width, height| {
+    window.set_resize_callback(move |_w, width, height| {
         overlay.resize(width / 2, height);
         inspector_overlay.move_to(width as i32 / 2, 0);
         inspector_overlay.resize(width / 2, height);

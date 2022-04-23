@@ -83,6 +83,7 @@ impl WindowFlags {
 
 pub struct Window {
     internal: ul_sys::ULWindow,
+    need_to_destroy: bool,
 }
 
 impl Window {
@@ -101,7 +102,17 @@ impl Window {
             window_flags.to_u32(),
         );
 
-        Self { internal }
+        Self {
+            internal,
+            need_to_destroy: true,
+        }
+    }
+
+    pub(crate) unsafe fn from_raw(raw: ul_sys::ULWindow) -> Self {
+        Self {
+            internal: raw,
+            need_to_destroy: false,
+        }
     }
 
     pub fn screen_width(&self) -> u32 {
@@ -178,14 +189,16 @@ impl Window {
     }
 
     set_callback! {
-        pub fn set_close_callback(&self, callback: FnMut()) {
-           ulWindowSetCloseCallback(_window: ul_sys::ULWindow);
+        pub fn set_close_callback(&self, callback: FnMut(window: &Window)) :
+           ulWindowSetCloseCallback(ul_window: ul_sys::ULWindow) {
+               let window = &Window::from_raw(ul_window);
         }
     }
 
     set_callback! {
-        pub fn set_resize_callback(&self, callback: FnMut(width: u32, height: u32)) {
-            ulWindowSetResizeCallback(_window: ul_sys::ULWindow, width: u32, height: u32);
+        pub fn set_resize_callback(&self, callback: FnMut(window: &Window, width: u32, height: u32)) :
+            ulWindowSetResizeCallback(ul_window: ul_sys::ULWindow, width: u32, height: u32) {
+               let window = &Window::from_raw(ul_window);
         }
     }
 
@@ -211,8 +224,8 @@ impl Window {
 
 impl Drop for Window {
     fn drop(&mut self) {
-        unsafe {
-            ul_sys::ulDestroyWindow(self.internal);
+        if self.need_to_destroy {
+            unsafe { ul_sys::ulDestroyWindow(self.internal) }
         }
     }
 }
