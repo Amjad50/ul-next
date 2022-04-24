@@ -1,10 +1,74 @@
 use crate::{
     event::{KeyEvent, MouseEvent, ScrollEvent},
+    rect::Rect,
     render_target::RenderTarget,
     session::Session,
     string::UlString,
     surface::Surface,
+    window::Cursor,
 };
+
+#[derive(Clone, Copy, Debug)]
+pub enum ConsoleMessageSource {
+    XML = ul_sys::ULMessageSource_kMessageSource_XML as isize,
+    JS = ul_sys::ULMessageSource_kMessageSource_JS as isize,
+    Network = ul_sys::ULMessageSource_kMessageSource_Network as isize,
+    ConsoleAPI = ul_sys::ULMessageSource_kMessageSource_ConsoleAPI as isize,
+    Storage = ul_sys::ULMessageSource_kMessageSource_Storage as isize,
+    AppCache = ul_sys::ULMessageSource_kMessageSource_AppCache as isize,
+    Rendering = ul_sys::ULMessageSource_kMessageSource_Rendering as isize,
+    CSS = ul_sys::ULMessageSource_kMessageSource_CSS as isize,
+    Security = ul_sys::ULMessageSource_kMessageSource_Security as isize,
+    ContentBlocker = ul_sys::ULMessageSource_kMessageSource_ContentBlocker as isize,
+    Other = ul_sys::ULMessageSource_kMessageSource_Other as isize,
+}
+
+impl TryFrom<ul_sys::ULMessageSource> for ConsoleMessageSource {
+    type Error = ();
+    fn try_from(value: ul_sys::ULMessageSource) -> Result<Self, Self::Error> {
+        match value {
+            ul_sys::ULMessageSource_kMessageSource_XML => Ok(ConsoleMessageSource::XML),
+            ul_sys::ULMessageSource_kMessageSource_JS => Ok(ConsoleMessageSource::JS),
+            ul_sys::ULMessageSource_kMessageSource_Network => Ok(ConsoleMessageSource::Network),
+            ul_sys::ULMessageSource_kMessageSource_ConsoleAPI => {
+                Ok(ConsoleMessageSource::ConsoleAPI)
+            }
+            ul_sys::ULMessageSource_kMessageSource_Storage => Ok(ConsoleMessageSource::Storage),
+            ul_sys::ULMessageSource_kMessageSource_AppCache => Ok(ConsoleMessageSource::AppCache),
+            ul_sys::ULMessageSource_kMessageSource_Rendering => Ok(ConsoleMessageSource::Rendering),
+            ul_sys::ULMessageSource_kMessageSource_CSS => Ok(ConsoleMessageSource::CSS),
+            ul_sys::ULMessageSource_kMessageSource_Security => Ok(ConsoleMessageSource::Security),
+            ul_sys::ULMessageSource_kMessageSource_ContentBlocker => {
+                Ok(ConsoleMessageSource::ContentBlocker)
+            }
+            ul_sys::ULMessageSource_kMessageSource_Other => Ok(ConsoleMessageSource::Other),
+            _ => Err(()),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum ConsoleMessageLevel {
+    Log = ul_sys::ULMessageLevel_kMessageLevel_Log as isize,
+    Warning = ul_sys::ULMessageLevel_kMessageLevel_Warning as isize,
+    Error = ul_sys::ULMessageLevel_kMessageLevel_Error as isize,
+    Debug = ul_sys::ULMessageLevel_kMessageLevel_Debug as isize,
+    Info = ul_sys::ULMessageLevel_kMessageLevel_Info as isize,
+}
+
+impl TryFrom<ul_sys::ULMessageLevel> for ConsoleMessageLevel {
+    type Error = ();
+    fn try_from(value: ul_sys::ULMessageLevel) -> Result<Self, ()> {
+        match value {
+            ul_sys::ULMessageLevel_kMessageLevel_Log => Ok(ConsoleMessageLevel::Log),
+            ul_sys::ULMessageLevel_kMessageLevel_Warning => Ok(ConsoleMessageLevel::Warning),
+            ul_sys::ULMessageLevel_kMessageLevel_Error => Ok(ConsoleMessageLevel::Error),
+            ul_sys::ULMessageLevel_kMessageLevel_Debug => Ok(ConsoleMessageLevel::Debug),
+            ul_sys::ULMessageLevel_kMessageLevel_Info => Ok(ConsoleMessageLevel::Info),
+            _ => Err(()),
+        }
+    }
+}
 
 pub struct ViewConfig {
     internal: ul_sys::ULViewConfig,
@@ -350,6 +414,218 @@ impl View {
 
     pub fn fire_scroll_event(&self, scroll_event: ScrollEvent) {
         unsafe { ul_sys::ulViewFireScrollEvent(self.internal, scroll_event.to_ul()) }
+    }
+
+    // looking at the CPP header, the strings seems to be references
+    // but the C headers doesn't say we must not destroy them.
+    // For now we don't destroy.
+    //  TODO: check if we don't need to destroy them
+    set_callback! {
+        pub fn set_change_title_callback(&self, callback: FnMut(view: &View, title: String)) :
+           ulViewSetChangeTitleCallback(ul_view: ul_sys::ULView, ul_title: ul_sys::ULString) {
+               let view = &View::from_raw(ul_view);
+               let title = UlString::copy_raw_to_string(ul_title);
+        }
+    }
+
+    set_callback! {
+        pub fn set_change_url_callback(&self, callback: FnMut(view: &View, url: String)) :
+           ulViewSetChangeURLCallback(ul_view: ul_sys::ULView, ul_url: ul_sys::ULString) {
+               let view = &View::from_raw(ul_view);
+               let url = UlString::copy_raw_to_string(ul_url);
+        }
+    }
+
+    set_callback! {
+        pub fn set_change_tooltip_callback(&self, callback: FnMut(view: &View, tooltip: String)) :
+           ulViewSetChangeTooltipCallback(ul_view: ul_sys::ULView, ul_tooltip: ul_sys::ULString) {
+               let view = &View::from_raw(ul_view);
+               let tooltip = UlString::copy_raw_to_string(ul_tooltip);
+        }
+    }
+
+    set_callback! {
+        pub fn set_change_cursor_callback(&self, callback: FnMut(view: &View, cursor: Cursor)) :
+           ulViewSetChangeCursorCallback(ul_view: ul_sys::ULView, ul_cursor: ul_sys::ULCursor) {
+               let view = &View::from_raw(ul_view);
+               // TODO: handle strings
+               let cursor = Cursor::try_from(ul_cursor).unwrap();
+        }
+    }
+
+    set_callback! {
+        pub fn set_add_console_message_callback(&self, callback: FnMut(
+                view: &View,
+                message_source: ConsoleMessageSource,
+                message_level: ConsoleMessageLevel,
+                message: String,
+                line_number:u32,
+                column_number:u32,
+                source_id: String)) :
+           ulViewSetAddConsoleMessageCallback(
+               ul_view: ul_sys::ULView,
+               ul_message_source: ul_sys::ULMessageSource,
+               ul_message_level: ul_sys::ULMessageLevel,
+               ul_message: ul_sys::ULString,
+               line_number: u32,
+               column_number :u32,
+               ul_source_id: ul_sys::ULString
+            ) {
+               let view = &View::from_raw(ul_view);
+               let message_source = ConsoleMessageSource::try_from(ul_message_source).unwrap();
+               let message_level = ConsoleMessageLevel::try_from(ul_message_level).unwrap();
+               let message = UlString::copy_raw_to_string(ul_message);
+               let source_id = UlString::copy_raw_to_string(ul_source_id);
+        }
+    }
+
+    set_callback! {
+        /// Set callback for when the page wants to create a new View.
+        ///
+        /// This is usually the result of a user clicking a link with target="_blank" or by JavaScript
+        /// calling window.open(url).
+        ///
+        /// To allow creation of these new Views, you should create a new View in this callback, resize it
+        /// to your container, and return it. You are responsible for displaying the returned View.
+        ///
+        /// You should return [`None`] if you want to block the action.
+        pub fn set_create_child_view_callback(&self, callback: FnMut(
+                view: &View,
+                opener_url: String,
+                target_url: String,
+                is_popup: bool,
+                popup_rect: Rect<i32>
+                // TODO: should we change the return type?
+                //       since the new view will be owned by another overlay
+            ) -> ret_view: Option<View>) :
+           ulViewSetCreateChildViewCallback(
+               ul_view: ul_sys::ULView,
+               ul_opener_url: ul_sys::ULString,
+               ul_target_url: ul_sys::ULString,
+               is_popup: bool,
+               ul_popup_rect: ul_sys::ULIntRect
+            ) -> ul_sys::ULView {
+               let view = &View::from_raw(ul_view);
+               let opener_url = UlString::copy_raw_to_string(ul_opener_url);
+               let target_url = UlString::copy_raw_to_string(ul_target_url);
+               let popup_rect = Rect::from(ul_popup_rect);
+        } {
+            if let Some(ret_view) = ret_view {
+                ret_view.internal
+            } else {
+                std::ptr::null_mut()
+            }
+        }
+    }
+
+    set_callback! {
+        pub fn set_begin_loading_callback(&self, callback: FnMut(
+                view: &View,
+                frame_id: u64,
+                is_main_frame: bool,
+                url: String)) :
+           ulViewSetBeginLoadingCallback(
+               ul_view: ul_sys::ULView,
+               frame_id: u64,
+               is_main_frame: bool,
+               ul_url: ul_sys::ULString
+            ) {
+               let view = &View::from_raw(ul_view);
+               let url = UlString::copy_raw_to_string(ul_url);
+        }
+    }
+
+    set_callback! {
+        pub fn set_finish_loading_callback(&self, callback: FnMut(
+                view: &View,
+                frame_id: u64,
+                is_main_frame: bool,
+                url: String)) :
+           ulViewSetFinishLoadingCallback(
+               ul_view: ul_sys::ULView,
+               frame_id: u64,
+               is_main_frame: bool,
+               ul_url: ul_sys::ULString
+            ) {
+               let view = &View::from_raw(ul_view);
+               let url = UlString::copy_raw_to_string(ul_url);
+        }
+    }
+
+    set_callback! {
+        pub fn set_fail_loading_callback(&self, callback: FnMut(
+                view: &View,
+                frame_id: u64,
+                is_main_frame: bool,
+                url: String,
+                description: String,
+                error_domain: String,
+                error_code: i32)) :
+           ulViewSetFailLoadingCallback(
+               ul_view: ul_sys::ULView,
+               frame_id: u64,
+               is_main_frame: bool,
+               ul_url: ul_sys::ULString,
+               ul_description: ul_sys::ULString,
+               ul_error_domain: ul_sys::ULString,
+               error_code: i32
+            ) {
+               let view = &View::from_raw(ul_view);
+               let url = UlString::copy_raw_to_string(ul_url);
+               let description = UlString::copy_raw_to_string(ul_description);
+               let error_domain = UlString::copy_raw_to_string(ul_error_domain);
+        }
+    }
+
+    set_callback! {
+        /// Set callback for when the JavaScript window object is reset for a new page load.
+        ///
+        /// This is called before any scripts are executed on the page and is the earliest time to setup any
+        /// initial JavaScript state or bindings.
+        ///
+        /// The document is not guaranteed to be loaded/parsed at this point. If you need to make any
+        /// JavaScript calls that are dependent on DOM elements or scripts on the page, use DOMReady
+        /// instead.
+        ///
+        /// The window object is lazily initialized (this will not be called on pages with no scripts).
+        pub fn set_window_object_ready_callback(&self, callback: FnMut(
+                view: &View,
+                frame_id: u64,
+                is_main_frame: bool,
+                url: String)) :
+           ulViewSetWindowObjectReadyCallback(
+               ul_view: ul_sys::ULView,
+               frame_id: u64,
+               is_main_frame: bool,
+               ul_url: ul_sys::ULString
+            ) {
+               let view = &View::from_raw(ul_view);
+               let url = UlString::copy_raw_to_string(ul_url);
+        }
+    }
+
+    set_callback! {
+        pub fn set_dom_ready_callback(&self, callback: FnMut(
+                view: &View,
+                frame_id: u64,
+                is_main_frame: bool,
+                url: String)) :
+           ulViewSetDOMReadyCallback(
+               ul_view: ul_sys::ULView,
+               frame_id: u64,
+               is_main_frame: bool,
+               ul_url: ul_sys::ULString
+            ) {
+               let view = &View::from_raw(ul_view);
+               let url = UlString::copy_raw_to_string(ul_url);
+        }
+    }
+
+    set_callback! {
+        pub fn set_update_history_callback(&self, callback: FnMut(view: &View)) :
+           ulViewSetUpdateHistoryCallback(ul_view: ul_sys::ULView) {
+               let view = &View::from_raw(ul_view);
+        }
     }
 
     pub fn set_needs_paint(&self, needs_paint: bool) {

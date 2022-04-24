@@ -2,6 +2,7 @@ use std::{self, ffi::CString};
 
 use crate::{overlay::Overlay, view::View};
 
+#[derive(Clone, Copy, Debug)]
 pub enum Cursor {
     Alias = ul_sys::ULCursor_kCursor_Alias as isize,
     Cell = ul_sys::ULCursor_kCursor_Cell as isize,
@@ -47,6 +48,60 @@ pub enum Cursor {
     WestResize = ul_sys::ULCursor_kCursor_WestResize as isize,
     ZoomIn = ul_sys::ULCursor_kCursor_ZoomIn as isize,
     ZoomOut = ul_sys::ULCursor_kCursor_ZoomOut as isize,
+}
+
+impl TryFrom<ul_sys::ULCursor> for Cursor {
+    type Error = ();
+
+    fn try_from(value: ul_sys::ULCursor) -> Result<Self, Self::Error> {
+        match value {
+            ul_sys::ULCursor_kCursor_Alias => Ok(Self::Alias),
+            ul_sys::ULCursor_kCursor_Cell => Ok(Self::Cell),
+            ul_sys::ULCursor_kCursor_ColumnResize => Ok(Self::ColumnResize),
+            ul_sys::ULCursor_kCursor_ContextMenu => Ok(Self::ContextMenu),
+            ul_sys::ULCursor_kCursor_Copy => Ok(Self::Copy),
+            ul_sys::ULCursor_kCursor_Cross => Ok(Self::Cross),
+            ul_sys::ULCursor_kCursor_Custom => Ok(Self::Custom),
+            ul_sys::ULCursor_kCursor_EastPanning => Ok(Self::EastPanning),
+            ul_sys::ULCursor_kCursor_EastResize => Ok(Self::EastResize),
+            ul_sys::ULCursor_kCursor_EastWestResize => Ok(Self::EastWestResize),
+            ul_sys::ULCursor_kCursor_Grab => Ok(Self::Grab),
+            ul_sys::ULCursor_kCursor_Grabbing => Ok(Self::Grabbing),
+            ul_sys::ULCursor_kCursor_Hand => Ok(Self::Hand),
+            ul_sys::ULCursor_kCursor_Help => Ok(Self::Help),
+            ul_sys::ULCursor_kCursor_IBeam => Ok(Self::IBeam),
+            ul_sys::ULCursor_kCursor_MiddlePanning => Ok(Self::MiddlePanning),
+            ul_sys::ULCursor_kCursor_Move => Ok(Self::Move),
+            ul_sys::ULCursor_kCursor_NoDrop => Ok(Self::NoDrop),
+            ul_sys::ULCursor_kCursor_None => Ok(Self::None),
+            ul_sys::ULCursor_kCursor_NorthEastPanning => Ok(Self::NorthEastPanning),
+            ul_sys::ULCursor_kCursor_NorthEastResize => Ok(Self::NorthEastResize),
+            ul_sys::ULCursor_kCursor_NorthEastSouthWestResize => Ok(Self::NorthEastSouthWestResize),
+            ul_sys::ULCursor_kCursor_NorthPanning => Ok(Self::NorthPanning),
+            ul_sys::ULCursor_kCursor_NorthResize => Ok(Self::NorthResize),
+            ul_sys::ULCursor_kCursor_NorthSouthResize => Ok(Self::NorthSouthResize),
+            ul_sys::ULCursor_kCursor_NorthWestPanning => Ok(Self::NorthWestPanning),
+            ul_sys::ULCursor_kCursor_NorthWestResize => Ok(Self::NorthWestResize),
+            ul_sys::ULCursor_kCursor_NorthWestSouthEastResize => Ok(Self::NorthWestSouthEastResize),
+            ul_sys::ULCursor_kCursor_NotAllowed => Ok(Self::NotAllowed),
+            ul_sys::ULCursor_kCursor_Pointer => Ok(Self::Pointer),
+            ul_sys::ULCursor_kCursor_Progress => Ok(Self::Progress),
+            ul_sys::ULCursor_kCursor_RowResize => Ok(Self::RowResize),
+            ul_sys::ULCursor_kCursor_SouthEastPanning => Ok(Self::SouthEastPanning),
+            ul_sys::ULCursor_kCursor_SouthEastResize => Ok(Self::SouthEastResize),
+            ul_sys::ULCursor_kCursor_SouthPanning => Ok(Self::SouthPanning),
+            ul_sys::ULCursor_kCursor_SouthResize => Ok(Self::SouthResize),
+            ul_sys::ULCursor_kCursor_SouthWestPanning => Ok(Self::SouthWestPanning),
+            ul_sys::ULCursor_kCursor_SouthWestResize => Ok(Self::SouthWestResize),
+            ul_sys::ULCursor_kCursor_VerticalText => Ok(Self::VerticalText),
+            ul_sys::ULCursor_kCursor_Wait => Ok(Self::Wait),
+            ul_sys::ULCursor_kCursor_WestPanning => Ok(Self::WestPanning),
+            ul_sys::ULCursor_kCursor_WestResize => Ok(Self::WestResize),
+            ul_sys::ULCursor_kCursor_ZoomIn => Ok(Self::ZoomIn),
+            ul_sys::ULCursor_kCursor_ZoomOut => Ok(Self::ZoomOut),
+            _ => Err(()),
+        }
+    }
 }
 
 pub struct WindowFlags {
