@@ -7,6 +7,7 @@ pub mod app;
 pub mod config;
 pub mod event;
 pub mod overlay;
+pub mod platform;
 pub mod rect;
 pub mod render_target;
 pub mod renderer;
