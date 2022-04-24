@@ -274,7 +274,7 @@ impl View {
     //pub fn javascript_vm(&self) {
     //}
 
-    pub fn evaluate_script(&self, script: &str) -> String {
+    pub fn evaluate_script(&self, script: &str) -> Result<String, String> {
         unsafe {
             let ul_script_string = UlString::from_str(script);
             // a dummy value, it will be replaced by the actual result
@@ -284,7 +284,15 @@ impl View {
                 ul_script_string.to_ul(),
                 &mut exception_string as _,
             );
-            UlString::copy_raw_to_string(result_string)
+
+            let has_exception = !ul_sys::ulStringIsEmpty(exception_string);
+            if has_exception {
+                let exception_string = UlString::copy_raw_to_string(exception_string);
+                Err(exception_string)
+            } else {
+                let result_string = UlString::copy_raw_to_string(result_string);
+                Ok(result_string)
+            }
         }
     }
 
