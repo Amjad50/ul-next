@@ -16,3 +16,26 @@ pub mod string;
 pub mod surface;
 pub mod view;
 pub mod window;
+
+#[derive(Clone, Copy, Debug)]
+pub struct Version {
+    pub major: u32,
+    pub minor: u32,
+    pub patch: u32,
+}
+
+impl Version {
+    pub fn to_string(&self) -> String {
+        format!("{}.{}.{}", self.major, self.minor, self.patch)
+    }
+}
+
+pub fn version() -> Version {
+    unsafe {
+        Version {
+            major: ul_sys::ulVersionMajor(),
+            minor: ul_sys::ulVersionMinor(),
+            patch: ul_sys::ulVersionPatch(),
+        }
+    }
+}
