@@ -5,18 +5,20 @@ pub(crate) struct UlString {
 }
 
 impl UlString {
-    pub(crate) unsafe fn from_raw(internal: ul_sys::ULString) -> Self {
-        Self { internal }
+    // will copy to a Rust string and destroys the original
+    pub(crate) unsafe fn move_raw_to_string(internal: ul_sys::ULString) -> String {
+        let s = Self::copy_raw_to_string(internal);
+
+        let ul_string = Self { internal };
+        drop(ul_string);
+
+        s
     }
 
     pub(crate) unsafe fn from_str(s: &str) -> Self {
         let internal =
             ul_sys::ulCreateStringUTF8(s.as_bytes().as_ptr() as *const i8, s.len() as u64);
         Self { internal }
-    }
-
-    pub(crate) unsafe fn to_string(&self) -> String {
-        Self::copy_raw_to_string(self.internal)
     }
 
     pub(crate) unsafe fn to_ul(&self) -> ul_sys::ULString {
@@ -31,7 +33,6 @@ impl UlString {
         )
         .iter()
         .map(|c| *c as u8)
-        .chain([240, 159, 146, 150])
         .collect();
 
         // TODO: handle error
