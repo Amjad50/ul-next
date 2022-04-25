@@ -1,9 +1,6 @@
-use std::{env, path::PathBuf, rc::Rc};
+use std::rc::Rc;
 
-use rust_ul_next::{
-    app::{App, Settings},
-    window::WindowFlags,
-};
+use rust_ul_next::{app::App, platform::Platform, window::WindowFlags};
 
 /// This example is ported from the `Ultralight` main repository.
 
@@ -21,22 +18,12 @@ use rust_ul_next::{
 ///
 /// We will create the simplest possible AppCore application in this sample.
 fn main() {
-    // The library require access to the `resources` folder, which can be obtained
-    // from the `Ultralight` repository.
-    //
-    // The library doesn't support absolute paths, so we builds relative path
-    // from the exe location to the current location.
-    let mut path = PathBuf::from_iter(env::current_exe().unwrap().components().map(|_| ".."))
-        .to_string_lossy()
-        .to_string();
-    path.push_str(&env::current_dir().unwrap().to_string_lossy());
+    // set the origin file system, require `resources` folder, which can be
+    // obtained from `Ultralight sdk`
+    Platform::enable_platform_file_system(".");
 
-    // set the file system path to the current location, to access resources
-    // and use all the other default settings
-    let app = App::new(
-        Some(Settings::start().file_system_path(&path).build()),
-        None,
-    );
+    // use default settings and configs
+    let app = App::new(None, None);
 
     // Create our Window.
     //
