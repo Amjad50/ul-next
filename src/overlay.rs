@@ -9,8 +9,8 @@ pub struct Overlay {
 impl Overlay {
     pub(crate) unsafe fn create(
         window: ul_sys::ULWindow,
-        height: u32,
         width: u32,
+        height: u32,
         x: i32,
         y: i32,
     ) -> Self {
