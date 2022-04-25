@@ -4,6 +4,7 @@ use crate::string::UlString;
 
 lazy_static::lazy_static! {
     static ref LOGGER: Mutex<Option<Box<dyn Logger + Send>>> = Mutex::new(None);
+    static ref CLIPBOARD: Mutex<Option<Box<dyn Clipboard + Send>>> = Mutex::new(None);
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -27,7 +28,17 @@ impl TryFrom<u32> for LogLevel {
 }
 
 pub trait Logger {
+    /// Invoked when the library wants to print a message to the log.
     fn log(&mut self, log_level: LogLevel, message: String);
+}
+
+pub trait Clipboard {
+    /// Invoked when the library wants to clear the system's clipboard.
+    fn clear(&mut self);
+    /// Invoked when the library wants to read from the system's clipboard.
+    fn read_plain_text(&mut self) -> Option<String>;
+    /// Invoked when the library wants to write to the system's clipboard.
+    fn write_plain_text(&mut self, text: &str);
 }
 
 pub struct Platform;
@@ -47,7 +58,7 @@ impl Platform {
         let logger = Box::new(logger);
         *LOGGER.lock().unwrap() = Some(logger);
 
-        // handle errors
+        // TODO: handle errors
         unsafe extern "C" fn trampoline(log_level: u32, message: ul_sys::ULString) {
             let log_level = LogLevel::try_from(log_level).unwrap();
             let message = UlString::copy_raw_to_string(message);
@@ -62,6 +73,55 @@ impl Platform {
 
         unsafe {
             ul_sys::ulPlatformSetLogger(ul_logger);
+        }
+    }
+
+    /// Set a custom Clipboard implementation.
+    ///
+    /// This should be used if you are using [`Renderer::create`] (which does not provide its own
+    /// clipboard implementation).
+    ///
+    /// The Clipboard trait is used by the library to make calls to the system's native clipboard
+    /// (eg, cut, copy, paste).
+    ///
+    /// You should call this before [`Renderer::create`] or [`App::new`].
+    pub fn set_clipboard<C: Clipboard + Send + 'static>(clipboard: C) {
+        let clipboard = Box::new(clipboard);
+        *CLIPBOARD.lock().unwrap() = Some(clipboard);
+
+        // TODO: handle errors
+        unsafe extern "C" fn trampoline_clear() {
+            let mut clipboard = CLIPBOARD.lock().unwrap();
+            // the clipboard must always be `Some` at this point.
+            clipboard.as_mut().unwrap().clear();
+        }
+
+        unsafe extern "C" fn trampoline_read_plain_text(ul_result: ul_sys::ULString) {
+            let mut clipboard = CLIPBOARD.lock().unwrap();
+            // the clipboard must always be `Some` at this point.
+            let result = clipboard.as_mut().unwrap().read_plain_text();
+            if let Some(result) = result {
+                let result = UlString::from_str(&result);
+                ul_sys::ulStringAssignString(ul_result, result.to_ul());
+            }
+            // no need to write if there is no data
+        }
+
+        unsafe extern "C" fn trampoline_write_plain_text(ul_text: ul_sys::ULString) {
+            let text = UlString::copy_raw_to_string(ul_text);
+            let mut clipboard = CLIPBOARD.lock().unwrap();
+            // the clipboard must always be `Some` at this point.
+            clipboard.as_mut().unwrap().write_plain_text(&text);
+        }
+
+        let ul_clipboard = ul_sys::ULClipboard {
+            clear: Some(trampoline_clear),
+            read_plain_text: Some(trampoline_read_plain_text),
+            write_plain_text: Some(trampoline_write_plain_text),
+        };
+
+        unsafe {
+            ul_sys::ulPlatformSetClipboard(ul_clipboard);
         }
     }
 
