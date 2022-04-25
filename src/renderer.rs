@@ -23,6 +23,26 @@ impl Renderer {
         }
     }
 
+    /// Create the Ultralight Renderer directly.
+    ///
+    /// Unlike [`App::new`], this does not use any native windows for drawing and allows you to manage
+    /// your own runloop and painting. This method is recommended for those wishing to integrate the
+    /// library into a game.
+    ///
+    /// This singleton manages the lifetime of all Views and coordinates all painting, rendering,
+    /// network requests, and event dispatch.
+    ///
+    /// You should only call this once per process lifetime.
+    ///
+    /// You shoud set up your platform handlers (eg,
+    /// [`Platform::set_logger`]/[`Platform::enable_default_logger`],
+    /// [`Platform::enable_platform_file_system`], etc.) before calling this.
+    ///
+    /// You will also need to define a font loader before calling this -- as of this writing (v1.2) the
+    /// only way to do this is [`Platform::enable_platform_fontloader`]
+    ///
+    /// @NOTE:  You should not call this if you are using [`App::new`], it creates its own renderer and
+    ///         provides default implementations for various platform handlers automatically.
     pub fn create(config: Config) -> Self {
         let internal = unsafe { ul_sys::ulCreateRenderer(config.to_ul()) };
         let default_session = unsafe { Session::from_raw(ul_sys::ulDefaultSession(internal)) };

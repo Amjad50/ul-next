@@ -33,6 +33,16 @@ pub trait Logger {
 pub struct Platform;
 
 impl Platform {
+    /// Set a custom Logger implementation.
+    ///
+    /// This is used to log debug messages to the console or to a log file.
+    ///
+    /// You should call this before [`App::new`] or [`Renderer::create`]
+    ///
+    /// [`App::new`] will use the default logger if you never call this.
+    ///
+    /// If you're [`Renderer::create`] you can still use the
+    /// default logger by calling [`Platform::enable_default_logger`].
     pub fn set_logger<L: Logger + Send + 'static>(logger: L) {
         let logger = Box::new(logger);
         *LOGGER.lock().unwrap() = Some(logger);

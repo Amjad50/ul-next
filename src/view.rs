@@ -288,6 +288,9 @@ impl View {
         unsafe { ul_sys::ulViewIsLoading(self.internal) }
     }
 
+    /// Get the RenderTarget for the View.
+    ///
+    ///  Only valid when the view is accelerated.
     pub fn render_target(&self) -> Option<RenderTarget> {
         if self.is_accelerated() {
             Some(unsafe { RenderTarget::from(ul_sys::ulViewGetRenderTarget(self.internal)) })
@@ -296,6 +299,19 @@ impl View {
         }
     }
 
+    /// Get the Surface for the View (native pixel buffer container).
+    ///
+    /// This is only valid when the view is not accelerated.
+    ///
+    /// (Will return a [`None`] when the GPU renderer is enabled.)
+    ///
+    /// TODO:
+    /// The default Surface is BitmapSurface but you can provide your own Surface implementation
+    /// via [`Platform::set_surface_definition`].
+    ///
+    /// TODO:
+    /// When using the default Surface, you can retrieve the underlying bitmap by casting
+    /// ULSurface to ULBitmapSurface and calling ulBitmapSurfaceGetBitmap().
     pub fn surface(&self) -> Option<Surface> {
         if !self.is_accelerated() {
             unsafe {
