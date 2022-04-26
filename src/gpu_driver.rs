@@ -2,6 +2,7 @@ use std::slice;
 
 use crate::{bitmap::Bitmap, platform::GPUDRIVER, rect::Rect};
 
+#[derive(Debug)]
 pub struct RenderBuffer {
     pub texture_id: u32,
     pub width: u32,
@@ -21,6 +22,8 @@ impl From<ul_sys::ULRenderBuffer> for RenderBuffer {
         }
     }
 }
+
+#[derive(Debug)]
 #[allow(non_camel_case_types)]
 pub enum VertexBufferFormat {
     Format_2f_4ub_2f = ul_sys::ULVertexBufferFormat_kVertexBufferFormat_2f_4ub_2f as isize,
@@ -75,29 +78,12 @@ impl From<ul_sys::ULIndexBuffer> for IndexBuffer {
     }
 }
 
-pub enum GpuCommandType {
-    DrawGeometry = ul_sys::ULCommandType_kCommandType_DrawGeometry as isize,
-    ClearRenderBuffer = ul_sys::ULCommandType_kCommandType_ClearRenderBuffer as isize,
-}
-
-impl TryFrom<ul_sys::ULCommandType> for GpuCommandType {
-    type Error = ();
-
-    fn try_from(gct: ul_sys::ULCommandType) -> Result<Self, Self::Error> {
-        match gct {
-            ul_sys::ULCommandType_kCommandType_DrawGeometry => Ok(GpuCommandType::DrawGeometry),
-            ul_sys::ULCommandType_kCommandType_ClearRenderBuffer => {
-                Ok(GpuCommandType::ClearRenderBuffer)
-            }
-            _ => Err(()),
-        }
-    }
-}
-
+#[derive(Debug)]
 pub struct Matrix4x4 {
     pub data: [f32; 16],
 }
 
+#[derive(Debug)]
 pub struct Vec4 {
     pub data: [f32; 4],
 }
@@ -118,6 +104,7 @@ macro_rules! from_ul_arr {
     };
 }
 
+#[derive(Debug)]
 pub enum ShaderType {
     Fill = ul_sys::ULShaderType_kShaderType_Fill as isize,
     FillPath = ul_sys::ULShaderType_kShaderType_FillPath as isize,
@@ -135,6 +122,7 @@ impl TryFrom<ul_sys::ULShaderType> for ShaderType {
     }
 }
 
+#[derive(Debug)]
 pub struct GpuState {
     pub viewport_width: u32,
     pub viewport_height: u32,
@@ -193,25 +181,37 @@ impl TryFrom<ul_sys::ULGPUState> for GpuState {
     }
 }
 
-pub struct GpuCommand {
-    pub command_type: GpuCommandType,
-    pub gpu_state: GpuState,
-    pub geometry_id: u32,
-    pub indices_count: u32,
-    pub indices_offset: u32,
+#[derive(Debug)]
+pub enum GpuCommand {
+    ClearRenderBuffer {
+        render_buffer_id: u32,
+    },
+    DrawGeometry {
+        gpu_state: GpuState,
+        geometry_id: u32,
+        indices_count: u32,
+        indices_offset: u32,
+    },
 }
 
 impl TryFrom<ul_sys::ULCommand> for GpuCommand {
     type Error = ();
 
     fn try_from(gc: ul_sys::ULCommand) -> Result<Self, Self::Error> {
-        Ok(GpuCommand {
-            command_type: GpuCommandType::try_from(gc.command_type as u32)?,
-            gpu_state: GpuState::try_from(gc.gpu_state)?,
-            geometry_id: gc.geometry_id,
-            indices_count: gc.indices_count,
-            indices_offset: gc.indices_offset,
-        })
+        match gc.command_type as u32 {
+            ul_sys::ULCommandType_kCommandType_DrawGeometry => Ok(GpuCommand::DrawGeometry {
+                gpu_state: GpuState::try_from(gc.gpu_state)?,
+                geometry_id: gc.geometry_id,
+                indices_count: gc.indices_count,
+                indices_offset: gc.indices_offset,
+            }),
+            ul_sys::ULCommandType_kCommandType_ClearRenderBuffer => {
+                Ok(GpuCommand::ClearRenderBuffer {
+                    render_buffer_id: gc.gpu_state.render_buffer_id,
+                })
+            }
+            _ => Err(()),
+        }
     }
 }
 

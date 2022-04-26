@@ -5,6 +5,7 @@ use std::{
     slice,
 };
 
+#[derive(Debug)]
 pub enum BitmapFormat {
     /// Alpha channel only, 8-bits per pixel.
     ///
