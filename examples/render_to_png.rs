@@ -18,7 +18,7 @@ use rust_ul_next::{
 struct MyLogger;
 
 impl Logger for MyLogger {
-    fn log(&mut self, log_level: LogLevel, message: String) {
+    fn log_message(&mut self, log_level: LogLevel, message: String) {
         println!("{:?}: {}", log_level, message);
     }
 }

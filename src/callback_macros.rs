@@ -108,3 +108,50 @@ macro_rules! set_callback {
         }
     };
 }
+
+// note that `arg_ty` and `ret_ty` are not used in the macro, but are there
+// just for clarification and to make implementations of the macro easy
+macro_rules! platform_set_interface_macro {
+    {
+        $(#[$attr:meta])*
+        $vis:vis $setter_name:ident<$rust_ty:ident>($setter_arg_name:ident -> $static_name:ident) -> $ul_setter:ident($ul_struct_arg_ty:ident)
+        {
+            $(
+                $fn_name:ident($( ( $($ul_arg:ident: $ul_arg_ty:ty),* ) $(-> $ul_ret_ty:ty)? )?) ->  ($(($($arg:ident: $arg_ty:ty),*) $(-> $ret:ident: $ret_ty:ty)? )? )
+                {
+                    $($from_ul_to_rs_body:tt)*
+                }
+                $($from_rs_to_ul_body:block)?
+            )+
+        }
+    } => {
+        $vis fn $setter_name<T: $rust_ty + Send + 'static>($setter_arg_name: T) {
+            let $setter_arg_name = Box::new($setter_arg_name);
+            *$static_name.lock().unwrap() = Some($setter_arg_name);
+
+            $(
+                unsafe extern "C" fn $fn_name($($($ul_arg: $ul_arg_ty),*)?) $($(-> $ul_ret_ty)?)? {
+                    $($from_ul_to_rs_body)*
+                    let mut $setter_arg_name = $static_name.lock().unwrap();
+                    // the $setter_arg_name must always be `Some` at this point.
+                    let _r $($(: $ret_ty)?)? = $setter_arg_name.as_mut().unwrap().$fn_name($($($arg),*)?);
+                    $($(let $ret = _r;)?)?
+                    $(
+                    let _r = $from_rs_to_ul_body;
+                    )?
+                    _r
+                }
+            )+
+
+            let ul_struct = ul_sys::$ul_struct_arg_ty {
+                $(
+                    $fn_name: Some($fn_name)
+                ),+
+            };
+
+            unsafe {
+                ul_sys::$ul_setter(ul_struct);
+            }
+        }
+    };
+}
