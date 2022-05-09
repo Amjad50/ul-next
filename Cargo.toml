@@ -3,12 +3,23 @@ name = "rust-ul-next"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+default = []
+
 
 [dependencies]
 ul-sys = { version = "1.3.3-alpha.0", git = "https://github.com/Amjad50/rust-ul-sys", branch = "master" }
 scopeguard = "1.1.0"
 lazy_static = "1.4.0"
+glium = { version = "0.31.0", default-features = false, features = [], optional = true }
+
+
 
 [dev-dependencies]
 png = "0.17.5"
+glium = "0.31.0"
+
+[[example]]
+name = "glium_custom_gpu_driver"
+required-features = ["glium"]
