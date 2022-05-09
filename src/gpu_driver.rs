@@ -1,6 +1,10 @@
 use std::slice;
 
-use crate::{bitmap::Bitmap, platform::GPUDRIVER, rect::Rect};
+use crate::{
+    bitmap::{Bitmap, OwnedBitmap},
+    platform::GPUDRIVER,
+    rect::Rect,
+};
 
 #[derive(Debug)]
 pub struct RenderBuffer {
@@ -66,45 +70,56 @@ impl TryFrom<ul_sys::ULVertexBuffer> for VertexBuffer {
 }
 
 pub struct IndexBuffer {
-    pub buffer: Vec<u8>,
+    pub buffer: Vec<u32>,
 }
 
 impl From<ul_sys::ULIndexBuffer> for IndexBuffer {
     fn from(vb: ul_sys::ULIndexBuffer) -> Self {
-        let index_slice = unsafe { slice::from_raw_parts(vb.data, vb.size as usize) };
+        assert!(vb.size % 4 == 0);
+        let index_slice = unsafe { slice::from_raw_parts(vb.data as _, vb.size as usize / 4) };
         IndexBuffer {
             buffer: index_slice.to_vec(),
         }
     }
 }
 
-#[derive(Debug)]
-pub struct Matrix4x4 {
-    pub data: [f32; 16],
-}
-
-#[derive(Debug)]
-pub struct Vec4 {
-    pub data: [f32; 4],
-}
-
 // helper macro to convert arrays
 macro_rules! from_ul_arr {
-    ($struct:ident, $arr:expr, $to:ident : $from:ident) => {
+    ($arr:expr, $from:ident) => {
         [
-            $struct { $to: $arr[0].$from },
-            $struct { $to: $arr[1].$from },
-            $struct { $to: $arr[2].$from },
-            $struct { $to: $arr[3].$from },
-            $struct { $to: $arr[4].$from },
-            $struct { $to: $arr[5].$from },
-            $struct { $to: $arr[6].$from },
-            $struct { $to: $arr[7].$from },
+            $arr[0].$from,
+            $arr[1].$from,
+            $arr[2].$from,
+            $arr[3].$from,
+            $arr[4].$from,
+            $arr[5].$from,
+            $arr[6].$from,
+            $arr[7].$from,
+        ]
+    };
+    (mat $arr:expr, $from:ident) => {
+        [
+            from_ul_arr!(mat $arr[0].$from),
+            from_ul_arr!(mat $arr[1].$from),
+            from_ul_arr!(mat $arr[2].$from),
+            from_ul_arr!(mat $arr[3].$from),
+            from_ul_arr!(mat $arr[4].$from),
+            from_ul_arr!(mat $arr[5].$from),
+            from_ul_arr!(mat $arr[6].$from),
+            from_ul_arr!(mat $arr[7].$from),
+        ]
+    };
+    (mat $arr: expr) => {
+        [
+            [$arr[0], $arr[1], $arr[2], $arr[3]],
+            [$arr[4], $arr[5], $arr[6], $arr[7]],
+            [$arr[8], $arr[9], $arr[10], $arr[11]],
+            [$arr[12], $arr[13], $arr[14], $arr[15]],
         ]
     };
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ShaderType {
     Fill = ul_sys::ULShaderType_kShaderType_Fill as isize,
     FillPath = ul_sys::ULShaderType_kShaderType_FillPath as isize,
@@ -122,11 +137,12 @@ impl TryFrom<ul_sys::ULShaderType> for ShaderType {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct GpuState {
     pub viewport_width: u32,
     pub viewport_height: u32,
-    pub transform: Matrix4x4,
+    /// transformation matrix
+    pub transform: [f32; 16],
     pub enable_texturing: bool,
     pub enable_blend: bool,
     pub shader_type: ShaderType,
@@ -135,9 +151,10 @@ pub struct GpuState {
     pub texture_2_id: Option<u32>,
     pub texture_3_id: Option<u32>,
     pub uniform_scalar: [f32; 8],
-    pub uniform_vector: [Vec4; 8],
+    pub uniform_vector: [[f32; 4]; 8],
     pub clip_size: u8,
-    pub clip: [Matrix4x4; 8],
+    /// 8 clip matrices
+    pub clip: [[[f32; 4]; 4]; 8],
     pub enable_scissor: bool,
     pub scissor_rect: Rect<i32>,
 }
@@ -149,9 +166,7 @@ impl TryFrom<ul_sys::ULGPUState> for GpuState {
         Ok(GpuState {
             viewport_width: gs.viewport_width,
             viewport_height: gs.viewport_height,
-            transform: Matrix4x4 {
-                data: gs.transform.data,
-            },
+            transform: gs.transform.data,
             enable_texturing: gs.enable_texturing,
             enable_blend: gs.enable_blend,
             shader_type: ShaderType::try_from(gs.shader_type as u32)?,
@@ -172,16 +187,16 @@ impl TryFrom<ul_sys::ULGPUState> for GpuState {
                 Some(gs.texture_3_id)
             },
             uniform_scalar: gs.uniform_scalar,
-            uniform_vector: from_ul_arr!(Vec4, gs.uniform_vector, data: value),
+            uniform_vector: from_ul_arr!(gs.uniform_vector, value),
             clip_size: gs.clip_size,
-            clip: from_ul_arr!(Matrix4x4, gs.clip, data: data),
+            clip: from_ul_arr!(mat gs.clip, data),
             enable_scissor: gs.enable_scissor,
             scissor_rect: Rect::from(gs.scissor_rect),
         })
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum GpuCommand {
     ClearRenderBuffer {
         render_buffer_id: u32,
@@ -219,8 +234,8 @@ pub trait GpuDriver {
     fn begin_synchronize(&mut self);
     fn end_synchronize(&mut self);
     fn next_texture_id(&mut self) -> u32;
-    fn create_texture(&mut self, texture_id: u32, bitmap: &Bitmap);
-    fn update_texture(&mut self, texture_id: u32, bitmap: &Bitmap);
+    fn create_texture(&mut self, texture_id: u32, bitmap: OwnedBitmap);
+    fn update_texture(&mut self, texture_id: u32, bitmap: OwnedBitmap);
     fn destroy_texture(&mut self, texture_id: u32);
     fn next_render_buffer_id(&mut self) -> u32;
     fn create_render_buffer(&mut self, render_buffer_id: u32, render_buffer: RenderBuffer);
@@ -247,13 +262,13 @@ platform_set_interface_macro! {
         begin_synchronize() -> () {}
         end_synchronize() -> () {}
         next_texture_id(() -> u32) -> () {}
-        create_texture((texture_id: u32, ul_bitmap: ul_sys::ULBitmap)) -> ((texture_id: u32, bitmap: &Bitmap)) {
-            let bitmap = Bitmap::from_raw(ul_bitmap);
-            let bitmap = &bitmap;
+        create_texture((texture_id: u32, ul_bitmap: ul_sys::ULBitmap)) -> ((texture_id: u32, bitmap: OwnedBitmap)) {
+            let mut bitmap = Bitmap::from_raw(ul_bitmap);
+            let bitmap = OwnedBitmap::from_bitmap(&mut bitmap);
         }
-        update_texture((texture_id: u32, ul_bitmap: ul_sys::ULBitmap)) -> ((texture_id: u32, bitmap: &Bitmap)) {
-            let bitmap = Bitmap::from_raw(ul_bitmap);
-            let bitmap = &bitmap;
+        update_texture((texture_id: u32, ul_bitmap: ul_sys::ULBitmap)) -> ((texture_id: u32, bitmap: OwnedBitmap)) {
+            let mut bitmap = Bitmap::from_raw(ul_bitmap);
+            let bitmap = OwnedBitmap::from_bitmap(&mut bitmap);
         }
         destroy_texture((texture_id: u32)) -> ((texture_id: u32)) {}
         next_render_buffer_id(() -> u32) -> () {}

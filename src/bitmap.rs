@@ -5,7 +5,7 @@ use std::{
     slice,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum BitmapFormat {
     /// Alpha channel only, 8-bits per pixel.
     ///
@@ -242,5 +242,83 @@ impl Drop for Bitmap {
         if self.need_to_destroy {
             unsafe { ul_sys::ulDestroyBitmap(self.internal) };
         }
+    }
+}
+
+/// A bitmap object that has an owned pixel buffer.
+///
+/// This is useful for using the raw pixels in any rust code without
+/// binding to the underlying C library.
+///
+/// To create an ultralight bitmap, use [`OwnedBitmap::to_bitmap`].
+pub struct OwnedBitmap {
+    width: u32,
+    height: u32,
+    format: BitmapFormat,
+    bpp: u32,
+    row_bytes: u32,
+    bytes_size: u64,
+    pixels: Vec<u8>,
+    is_empty: bool,
+}
+
+impl OwnedBitmap {
+    pub fn from_bitmap(bitmap: &mut Bitmap) -> Self {
+        let width = bitmap.width();
+        let height = bitmap.height();
+        let format = bitmap.format();
+        let bpp = bitmap.bpp();
+        let row_bytes = bitmap.row_bytes();
+        let bytes_size = bitmap.bytes_size();
+        let is_empty = bitmap.is_empty();
+
+        let pixels = bitmap.lock_pixels().to_vec();
+
+        Self {
+            width,
+            height,
+            format,
+            bpp,
+            row_bytes,
+            bytes_size,
+            pixels,
+            is_empty,
+        }
+    }
+
+    pub fn to_bitmap(&self) -> Bitmap {
+        Bitmap::create_from_pixels(self.width, self.height, self.format, &self.pixels)
+    }
+
+    pub fn width(&self) -> u32 {
+        self.width
+    }
+
+    pub fn height(&self) -> u32 {
+        self.height
+    }
+
+    pub fn format(&self) -> BitmapFormat {
+        self.format
+    }
+
+    pub fn bpp(&self) -> u32 {
+        self.bpp
+    }
+
+    pub fn row_bytes(&self) -> u32 {
+        self.row_bytes
+    }
+
+    pub fn bytes_size(&self) -> u64 {
+        self.bytes_size
+    }
+
+    pub fn pixels(&self) -> &[u8] {
+        &self.pixels
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.is_empty
     }
 }
