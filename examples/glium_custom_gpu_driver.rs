@@ -132,7 +132,7 @@ fn main() {
 
         let render_target = view.render_target().unwrap();
 
-        let texture = receiver.get_texture(&render_target.texture_id);
+        let texture = receiver.get_texture(&render_target.texture_id).unwrap();
 
         let uniforms = uniform! {
             tex: texture.sampled()

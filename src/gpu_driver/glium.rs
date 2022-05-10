@@ -1,3 +1,5 @@
+//! A custom [`GpuDriver`] implementation for the `glium` backend.
+
 use std::{borrow::Cow, collections::HashMap, rc::Rc, sync::mpsc};
 
 use glium::{
@@ -29,9 +31,12 @@ use super::{GpuCommand, GpuDriver, IndexBuffer, RenderBuffer, VertexBuffer, Vert
 /// and should be used by the `ultralight` library. And the other is the receiver,
 /// which handles all gpu rendering logic.
 ///
+/// **Make sure that both the sender and the receiver are alive for the whole**
+/// **lifetime of the [`Renderer`](crate::renderer::Renderer)**
+///
 /// # Examples
 /// ```no_run
-/// let (sender, mut receiver) = rust_ul_next::gpu_driver::glium::create_gpu_driver(&display);
+/// let (sender, mut receiver) = create_gpu_driver(&display);
 /// Platform::set_gpu_driver(sender);
 ///
 /// renderer.render(); // will dispatch and send all events to `reciever` from `ultralight`
@@ -100,6 +105,8 @@ impl GliumDriverVertexBuffer {
                 ]);
                 let element_size = std::mem::size_of::<ul_sys::ULVertex_2f_4ub_2f>();
 
+                // SAFETY: we know the structure of `ul_sys::ULVertex_2f_4ub_2f`
+                // and we know that we match it with the format description.
                 unsafe { glium::VertexBuffer::new_raw(context, &buf, format, element_size) }
                     .unwrap()
                     .into()
@@ -175,6 +182,8 @@ impl GliumDriverVertexBuffer {
                 ]);
                 let element_size = std::mem::size_of::<ul_sys::ULVertex_2f_4ub_2f_2f_28f>();
 
+                // SAFETY: we know the structure of `ul_sys::ULVertex_2f_4ub_2f_2f_28f`
+                // and we know that we match it with the format description.
                 unsafe { glium::VertexBuffer::new_raw(context, &buf, format, element_size) }
                     .unwrap()
                     .into()
@@ -183,6 +192,13 @@ impl GliumDriverVertexBuffer {
     }
 }
 
+/// A [`GpuDriver`] implemented for integrating with `glium`.
+///
+/// Since `glium` is a single threaded library, and [`GpuDriver`] need to implement
+/// [`Send`] to be used in [`Platform::set_gpu_driver`](crate::platform::Platform::set_gpu_driver),
+/// we used a **Sender/Receiver** design here, where this is the sender and the receiver is
+/// [`GliumGpuDriverReceiver`], which will handle all the sent commands from here,
+/// and render them into textures.
 pub struct GliumGpuDriverSender {
     next_texture_id: u32,
     next_render_buffer_id: u32,
@@ -255,6 +271,9 @@ impl GpuDriver for GliumGpuDriverSender {
     ) {
         let glium_vertex_buffer = match vertex_buffer.format {
             VertexBufferFormat::Format_2f_4ub_2f => {
+                // SAFETY: since the source is `u8`, and we check that the `head`
+                // and `tail` are empty, we make sure that all the bytes are
+                // used in the format correctly.
                 let (head, body, tail) = unsafe {
                     vertex_buffer
                         .buffer
@@ -267,6 +286,9 @@ impl GpuDriver for GliumGpuDriverSender {
                 GliumDriverVertexBuffer::Format2f4ub2f(body.to_vec())
             }
             VertexBufferFormat::Format_2f_4ub_2f_2f_28f => {
+                // SAFETY: since the source is `u8`, and we check that the `head`
+                // and `tail` are empty, we make sure that all the bytes are
+                // used in the format correctly.
                 let (head, body, tail) = unsafe {
                     vertex_buffer
                         .buffer
@@ -297,6 +319,9 @@ impl GpuDriver for GliumGpuDriverSender {
     ) {
         let glium_vertex_buffer = match vertex_buffer.format {
             VertexBufferFormat::Format_2f_4ub_2f => {
+                // SAFETY: since the source is `u8`, and we check that the `head`
+                // and `tail` are empty, we make sure that all the bytes are
+                // used in the format correctly.
                 let (head, body, tail) = unsafe {
                     vertex_buffer
                         .buffer
@@ -309,6 +334,9 @@ impl GpuDriver for GliumGpuDriverSender {
                 GliumDriverVertexBuffer::Format2f4ub2f(body.to_vec())
             }
             VertexBufferFormat::Format_2f_4ub_2f_2f_28f => {
+                // SAFETY: since the source is `u8`, and we check that the `head`
+                // and `tail` are empty, we make sure that all the bytes are
+                // used in the format correctly.
                 let (head, body, tail) = unsafe {
                     vertex_buffer
                         .buffer
@@ -354,16 +382,34 @@ impl Facade for GluimContextWrapper {
     }
 }
 
+/// The receiver part of [`GliumGpuDriverSender`].
+///
+/// Since `glium` is a single threaded library, and [`GpuDriver`] need to implement
+/// [`Send`] to be used in [`Platform::set_gpu_driver`](crate::platform::Platform::set_gpu_driver),
+/// we used a **Sender/Receiver** design here, where [`GliumGpuDriverSender`]
+/// is the sender and the receiver is this struct, when calling [`GliumGpuDriverReceiver::render`],
+/// we will render all the commands we get from [`GliumGpuDriverSender`] into textures
+/// which can be obtained by [`GliumGpuDriverReceiver::get_texture`].
 pub struct GliumGpuDriverReceiver {
+    /// receiver for the commands from the sender
     receiver: mpsc::Receiver<GliumGpuCommand>,
+    /// glium context
     context: GluimContextWrapper,
 
+    /// create a small texture, which will be used when
+    /// the gpu driver doesn't set a texture for a draw call
     empty_texture: Texture2d,
+    /// map for (id -> texture), and storing the `render_buffer` id if applicable.
     texture_map: HashMap<u32, (Texture2d, Option<u32>)>,
+    /// map for (id -> render_buffer metadata), the render_buffer itself is a texture
+    /// stored in the `texture_map`, we only create a framebuffer when drawing.
     render_buffer_map: HashMap<u32, RenderBuffer>,
+    /// map for (id -> (vertex_buffer, index_buffer)).
     geometry_map: HashMap<u32, (VertexBufferAny, glium::IndexBuffer<u32>)>,
 
+    /// Shader program for path rendering commands.
     path_program: Program,
+    /// Shader program for fill rendering commands.
     fill_program: Program,
 }
 
@@ -372,8 +418,6 @@ impl GliumGpuDriverReceiver {
         let context = GluimContextWrapper {
             context: context.clone(),
         };
-        // create a small texture, which will be used when
-        // the gpu driver doesn't set a texture for a draw call
         let empty_texture = Texture2d::empty(&context, 1, 1).unwrap();
 
         let texture_map = HashMap::new();
@@ -406,7 +450,7 @@ impl GliumGpuDriverReceiver {
         }
     }
 
-    // helper function to create a texture based on bitmap
+    /// helper function to create a texture based on bitmap
     fn create_texture(&self, bitmap: &OwnedBitmap) -> Texture2d {
         if bitmap.is_empty() {
             Texture2d::empty(&self.context, bitmap.width(), bitmap.height()).unwrap()
@@ -463,11 +507,24 @@ impl GliumGpuDriverReceiver {
 }
 
 impl GliumGpuDriverReceiver {
-    pub fn get_texture(&self, id: &u32) -> &Texture2d {
-        let (texture, _) = self.texture_map.get(id).unwrap();
-        texture
+    /// Fetch `glium` texture by id, this id can be obtained from the current
+    /// `render_target` of a `view` by [`View::render_target`](crate::view::View::render_target).
+    ///
+    /// Example:
+    /// ```no_run
+    /// let render_target = view.render_target().unwrap();
+    /// let texture = receiver.get_texture(&render_target.texture_id);
+    /// ```
+    pub fn get_texture(&self, id: &u32) -> Option<&Texture2d> {
+        self.texture_map.get(id).map(|(t, _)| t)
     }
 
+    /// Flushes and renders all pending GPU commands recieved from [`GliumGpuDriverSender`],
+    /// which will be generated when calling [`Renderer::render`](crate::renderer::Renderer::render).
+    ///
+    /// **Note that this must be called for rendering to actually occure, as using**
+    /// **[`Platform::set_gpu_driver`](crate::platform::Platform::set_gpu_driver) alone**
+    /// **with [`GliumGpuDriverSender`] is not enough.**
     pub fn render(&mut self) {
         while let Ok(cmd) = self.receiver.try_recv() {
             match cmd {
@@ -541,6 +598,8 @@ impl GliumGpuDriverReceiver {
                             } => {
                                 assert!(self.render_buffer_map.contains_key(&id));
                                 let render_buffer = self.render_buffer_map.get(&id).unwrap();
+
+                                // TODO: add support
                                 assert!(!render_buffer.has_stencil_buffer);
                                 assert!(!render_buffer.has_depth_buffer);
 
@@ -625,6 +684,8 @@ impl GliumGpuDriverReceiver {
                                     }
                                 }
 
+                                // we use the supplied texture if it exists, or
+                                // an empty texture if it doesn't.
                                 let texture1 = if let Some(id) = gpu_state.texture_1_id {
                                     let (t, _) = self.texture_map.get(&id).unwrap();
                                     t

@@ -1,3 +1,14 @@
+//! Ultralight custom gpu driver.
+//!
+//! Ultralight allows to create a custom GPU driver to receive low level GPU commands
+//! and render them on custom Textures, which can be used to integrate to your
+//! game/application seamlessly.
+//!
+//! There is an example `C++` implementation for `OpenGL`, `DirectX11`, `DirectX12`
+//! and `Metal` in the [`AppCore`](https://github.com/ultralight-ux/AppCore) repository.
+//!
+//! This library also have a custom GPU driver for [`glium`].
+
 #[cfg(feature = "glium")]
 pub mod glium;
 
@@ -10,11 +21,17 @@ use crate::{
 };
 
 #[derive(Debug)]
+/// RenderBuffer description. (See [`GpuDriver::create_render_buffer`]).
 pub struct RenderBuffer {
+    /// The backing texture id for this render buffer.
     pub texture_id: u32,
+    /// The width of the backing texture.
     pub width: u32,
+    /// The height of the backing texture.
     pub height: u32,
+    /// Does the backing texture contain stencil buffer. (currently unused always false).
     pub has_stencil_buffer: bool,
+    /// Does the backing texture contain depth buffer. (currently unused always false).
     pub has_depth_buffer: bool,
 }
 
@@ -32,8 +49,11 @@ impl From<ul_sys::ULRenderBuffer> for RenderBuffer {
 
 #[derive(Debug)]
 #[allow(non_camel_case_types)]
+/// Vertex buffer format types
 pub enum VertexBufferFormat {
+    /// Vertex format type for path vertices.
     Format_2f_4ub_2f = ul_sys::ULVertexBufferFormat_kVertexBufferFormat_2f_4ub_2f as isize,
+    /// Vertex format type for quad vertices.
     Format_2f_4ub_2f_2f_28f =
         ul_sys::ULVertexBufferFormat_kVertexBufferFormat_2f_4ub_2f_2f_28f as isize,
 }
@@ -54,8 +74,14 @@ impl TryFrom<ul_sys::ULVertexBufferFormat> for VertexBufferFormat {
     }
 }
 
+// TODO: passing raw `[u8]` is not safe, maybe we should transmute them to
+//       a specific format? like what we did in `glium` gpu_driver.
+/// Vertex buffer, the buffer is used for `quad` or `path` rendering based on
+/// the `format`. (See [`GpuDriver::create_geometry`]).
 pub struct VertexBuffer {
+    /// The format of the raw data. Either path or quad vertices.
     pub format: VertexBufferFormat,
+    /// The raw vertex buffer data.
     pub buffer: Vec<u8>,
 }
 
@@ -72,6 +98,7 @@ impl TryFrom<ul_sys::ULVertexBuffer> for VertexBuffer {
     }
 }
 
+/// Index buffer. (See [`GpuDriver::create_geometry`]).
 pub struct IndexBuffer {
     pub buffer: Vec<u32>,
 }
@@ -123,8 +150,16 @@ macro_rules! from_ul_arr {
 }
 
 #[derive(Debug, Clone)]
+/// Shader types, used by [`GpuState::shader_type`]
+///
+/// Each of these correspond to a vertex/pixel shader pair to be used.
+/// You can find stock shader code for these in the `shaders` folder of the
+/// [`AppCore`](https://github.com/ultralight-ux/AppCore) repo and also in
+/// the [`glium`] custom `gpu_driver` implementation here.
 pub enum ShaderType {
+    /// Shader for the quad geometry.
     Fill = ul_sys::ULShaderType_kShaderType_Fill as isize,
+    /// Shader for the path geometry.
     FillPath = ul_sys::ULShaderType_kShaderType_FillPath as isize,
 }
 
@@ -141,24 +176,46 @@ impl TryFrom<ul_sys::ULShaderType> for ShaderType {
 }
 
 #[derive(Debug, Clone)]
+/// The GPU state description to be used when handling draw command.
+/// (See [`GpuCommand::DrawGeometry`]).
 pub struct GpuState {
+    /// Viewport width in pixels.
     pub viewport_width: u32,
+    /// Viewport height in pixels.
     pub viewport_height: u32,
-    /// transformation matrix
+    /// transformation matrix.
+    ///
+    /// you should multiply this with the screen-space orthographic projection
+    /// matrix then pass to the vertex shader.
     pub transform: [f32; 16],
+    /// Whether or not we should enable texturing for the current draw command.
     pub enable_texturing: bool,
+    /// Whether or not we should enable blending for the current draw command.
+    /// If blending is disabled, any drawn pixels should overwrite existing.
+    /// This is mainly used so we can modify alpha values of the RenderBuffer
+    /// during scissored clears.
     pub enable_blend: bool,
+    /// The vertex/pixel shader program pair to use for the current draw command.
     pub shader_type: ShaderType,
+    /// The render buffer to use for the current draw command.
     pub render_buffer_id: u32,
+    /// The texture id to bind to slot #1.
     pub texture_1_id: Option<u32>,
+    /// The texture id to bind to slot #2.
     pub texture_2_id: Option<u32>,
+    /// The texture id to bind to slot #3.
     pub texture_3_id: Option<u32>,
+    /// 8 scalar values to be passed to the shader as uniforms.
     pub uniform_scalar: [f32; 8],
+    /// 8 vector values to be passed to the shader as uniforms.
     pub uniform_vector: [[f32; 4]; 8],
+    /// clip size to be passed to the shader as uniforms.
     pub clip_size: u8,
-    /// 8 clip matrices
+    /// 8 clip matrices to be passed to the shader as uniforms.
     pub clip: [[[f32; 4]; 4]; 8],
+    /// Whether or not scissor testing should be used for the current draw command.
     pub enable_scissor: bool,
+    /// The scissor rect to use for scissor testing (units in pixels)
     pub scissor_rect: Rect<i32>,
 }
 
@@ -200,15 +257,23 @@ impl TryFrom<ul_sys::ULGPUState> for GpuState {
 }
 
 #[derive(Debug, Clone)]
+/// The GPU command to be executed.
 pub enum GpuCommand {
+    /// Clear a specific render buffer, to be prepared for drawing.
     ClearRenderBuffer {
+        /// The render buffer to clear.
         render_buffer_id: u32,
     },
+    /// Performs a draw command.
     DrawGeometry {
+        /// The GPU state to use for the draw command. (contain the `render_buffer_id`)
         gpu_state: GpuState,
+        /// The geometry (vertex_buffer/index_buffer pair) to be used for the draw command.
         geometry_id: u32,
-        indices_count: u32,
+        /// The index offset to start drawing from in the `index_buffer`.
         indices_offset: u32,
+        /// The number of indices to draw.
+        indices_count: u32,
     },
 }
 
@@ -233,30 +298,61 @@ impl TryFrom<ul_sys::ULCommand> for GpuCommand {
     }
 }
 
+// TODO: we should not return `0` in ids, should we enforce it?
+/// `GpuDriver` trait, dispatches GPU calls to the native driver.
+///
+/// This is automatically provided for you when you use [`App::new`](crate::app::App),
+/// `AppCore` provides platform-specific implementations of `GpuDriver` for each OS.
+///
+/// If you are using [`Renderer::create`](crate::renderer::Renderer::create),
+/// you will need to provide your own implementation of this trait if you
+/// have enabled the GPU renderer in the Config.
+/// (See [`Platform::set_gpu_driver`](crate::platform::Platform::set_gpu_driver)).
 pub trait GpuDriver {
+    /// Called before any commands are dispatched during a frame.
     fn begin_synchronize(&mut self);
+    /// Called after any commands are dispatched during a frame.
     fn end_synchronize(&mut self);
+    /// Get the next available texture ID. **DO NOT return `0`**.
     fn next_texture_id(&mut self) -> u32;
+    /// Create a texture with a certain ID and optional bitmap.
+    ///
+    /// **NOTE**: If the Bitmap is empty [`OwnedBitmap::is_empty`],
+    /// then a RTT Texture should be created instead.
+    /// This will be used as a backing texture for a new RenderBuffer.
+    ///
+    /// Even if the bitmap is empty, it will still contain the `width` and `height`
+    /// information, which can be used to know the size of the backing texture.
     fn create_texture(&mut self, texture_id: u32, bitmap: OwnedBitmap);
+    /// Update an existing non-RTT texture with new bitmap data.
     fn update_texture(&mut self, texture_id: u32, bitmap: OwnedBitmap);
+    /// Destroy a texture.
     fn destroy_texture(&mut self, texture_id: u32);
+    /// Generate the next available render buffer ID. **DO NOT return `0`**.
     fn next_render_buffer_id(&mut self) -> u32;
+    /// Create a render buffer with certain ID and buffer description.
     fn create_render_buffer(&mut self, render_buffer_id: u32, render_buffer: RenderBuffer);
+    /// Destroy a render buffer.
     fn destroy_render_buffer(&mut self, render_buffer_id: u32);
+    /// Get the next available geometry ID. **DO NOT return `0`**.
     fn next_geometry_id(&mut self) -> u32;
+    /// Create geometry with certain ID and vertex/index data.
     fn create_geometry(
         &mut self,
         geometry_id: u32,
         vertex_buffer: VertexBuffer,
         index_buffer: IndexBuffer,
     );
+    /// Update existing geometry with new vertex/index data.
     fn update_geometry(
         &mut self,
         geometry_id: u32,
         vertex_buffer: VertexBuffer,
         index_buffer: IndexBuffer,
     );
+    /// Destroy a geometry.
     fn destroy_geometry(&mut self, geometry_id: u32);
+    /// Update command list (here you should render the commands).
     fn update_command_list(&mut self, command_list: Vec<GpuCommand>);
 }
 

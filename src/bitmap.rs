@@ -1,3 +1,5 @@
+//! Bitmap container to hold raw pixels data.
+
 use std::{
     ffi::{c_void, CString},
     ops::{Deref, DerefMut},
@@ -6,6 +8,7 @@ use std::{
 };
 
 #[derive(Debug, Clone, Copy)]
+/// The supported bitmap formats.
 pub enum BitmapFormat {
     /// Alpha channel only, 8-bits per pixel.
     ///
@@ -37,6 +40,7 @@ impl TryFrom<ul_sys::ULBitmapFormat> for BitmapFormat {
 }
 
 impl BitmapFormat {
+    /// Returns the number of bytes per pixel for the specific bitmap format.
     pub fn bytes_per_pixel(&self) -> u32 {
         match self {
             BitmapFormat::A8Unorm => 1,
@@ -45,6 +49,9 @@ impl BitmapFormat {
     }
 }
 
+/// An RAII implementation of a “scoped lock” of a pixel buffer for [`Bitmap`]. When this structure is dropped (falls out of scope), the lock will be unlocked.
+///
+/// This struct is created by [`Bitmap::lock_pixels`].
 pub struct PixelsGuard<'a> {
     lock: &'a mut Bitmap,
     pixels: &'a mut [u8],
@@ -78,6 +85,7 @@ impl Drop for PixelsGuard<'_> {
     }
 }
 
+/// `Ultralight` Bitmap container.
 pub struct Bitmap {
     internal: ul_sys::ULBitmap,
     need_to_destroy: bool,
@@ -101,6 +109,11 @@ impl Bitmap {
 
     /// Create an aligned Bitmap with a certain configuration. Pixels will be allocated but not
     /// initialized.
+    ///
+    /// # Arguments
+    /// * `width` - The width of the bitmap.
+    /// * `height` - The height of the bitmap.
+    /// * `format` - The format of the bitmap.
     pub fn create(width: usize, height: usize, format: BitmapFormat) -> Self {
         Self {
             internal: unsafe { ul_sys::ulCreateBitmap(width as u32, height as u32, format as u32) },
@@ -109,6 +122,14 @@ impl Bitmap {
     }
 
     /// Create a Bitmap with existing pixels
+    ///
+    /// # Arguments
+    /// * `width` - The width of the bitmap.
+    /// * `height` - The height of the bitmap.
+    /// * `format` - The format of the bitmap.
+    /// * `pixels` - The raw pixels of the bitmap.
+    ///
+    /// The length of the `pixels` slice must be equal to `width * height * format.bytes_per_pixel()`.
     pub fn create_from_pixels(
         width: u32,
         height: u32,
@@ -171,7 +192,7 @@ impl Bitmap {
 
     /// Get the number of bytes between each row of pixels.
     ///
-    /// This value is usually calculated as width * bytes_per_pixel (bpp) but it may be larger
+    /// This value is usually calculated as `width() * bytes_per_pixel()` (bpp) but it may be larger
     /// due to alignment rules in the allocator.
     pub fn row_bytes(&self) -> u32 {
         unsafe { ul_sys::ulBitmapGetRowBytes(self.internal) }
@@ -179,11 +200,14 @@ impl Bitmap {
 
     /// Get the size in bytes of the pixel buffer.
     ///
-    /// bytes_size is calculated as row_bytes() * height().
+    /// bytes_size is calculated as `row_bytes() * height()`.
     pub fn bytes_size(&self) -> u64 {
         unsafe { ul_sys::ulBitmapGetSize(self.internal) }
     }
 
+    /// Lock the pixel buffer for reading/writing.
+    ///
+    /// An RAII guard is returned that will unlock the buffer when dropped.
     pub fn lock_pixels(&mut self) -> PixelsGuard {
         let (raw_pixels, size) = unsafe {
             ul_sys::ulBitmapLockPixels(self.internal);
@@ -250,7 +274,7 @@ impl Drop for Bitmap {
 /// This is useful for using the raw pixels in any rust code without
 /// binding to the underlying C library.
 ///
-/// To create an ultralight bitmap, use [`OwnedBitmap::to_bitmap`].
+/// To create an `Ultralight` bitmap, use [`OwnedBitmap::to_bitmap`].
 pub struct OwnedBitmap {
     width: u32,
     height: u32,
@@ -263,6 +287,9 @@ pub struct OwnedBitmap {
 }
 
 impl OwnedBitmap {
+    /// Create an [`OwnedBitmap`] from a [`Bitmap`].
+    ///
+    /// This will result in copying all the pixels from the original bitmap.
     pub fn from_bitmap(bitmap: &mut Bitmap) -> Self {
         let width = bitmap.width();
         let height = bitmap.height();
@@ -286,38 +313,56 @@ impl OwnedBitmap {
         }
     }
 
+    /// Create a [`Bitmap`] from an [`OwnedBitmap`].
+    ///
+    /// This is useful when we need to call `Ultralight` logic that require [`Bitmap`].
+    ///
+    /// This function will copy all the pixels from the owned bitmap.
     pub fn to_bitmap(&self) -> Bitmap {
         Bitmap::create_from_pixels(self.width, self.height, self.format, &self.pixels)
     }
 
+    /// Get the width in pixels.
     pub fn width(&self) -> u32 {
         self.width
     }
 
+    /// Get the height in pixels.
     pub fn height(&self) -> u32 {
         self.height
     }
 
+    /// Get the pixel format.
     pub fn format(&self) -> BitmapFormat {
         self.format
     }
 
+    /// Get the number of bytes per pixel.
     pub fn bpp(&self) -> u32 {
         self.bpp
     }
 
+    /// Get the number of bytes between each row of pixels.
     pub fn row_bytes(&self) -> u32 {
         self.row_bytes
     }
 
+    /// Get the size in bytes of the pixel buffer.
     pub fn bytes_size(&self) -> u64 {
         self.bytes_size
     }
 
+    /// Get the pixel buffer slice.
     pub fn pixels(&self) -> &[u8] {
         &self.pixels
     }
 
+    /// Get the mutable pixel buffer slice.
+    pub fn pixels_mut(&mut self) -> &mut [u8] {
+        &mut self.pixels
+    }
+
+    /// Whether or not this bitmap is empty (no pixels allocated).
     pub fn is_empty(&self) -> bool {
         self.is_empty
     }
