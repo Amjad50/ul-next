@@ -68,7 +68,7 @@ impl Deref for PixelsGuard<'_> {
     type Target = [u8];
 
     fn deref(&self) -> &[u8] {
-        &self.pixels
+        self.pixels
     }
 }
 
@@ -149,7 +149,7 @@ impl Bitmap {
                     width,
                     height,
                     format as u32,
-                    row_bytes.try_into().unwrap(),
+                    row_bytes,
                     pixels.as_ptr() as *const c_void,
                     pixels.len() as u64,
                     true,

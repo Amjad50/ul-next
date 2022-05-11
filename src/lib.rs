@@ -51,10 +51,10 @@ pub struct Version {
     pub patch: u32,
 }
 
-impl Version {
-    /// Convert the version into a string in the format `MAJOR.MINOR.PATCH`.
-    pub fn to_string(&self) -> String {
-        format!("{}.{}.{}", self.major, self.minor, self.patch)
+/// Convert the version into a string in the format `MAJOR.MINOR.PATCH`.
+impl std::fmt::Display for Version {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}.{}.{}", self.major, self.minor, self.patch)
     }
 }
 

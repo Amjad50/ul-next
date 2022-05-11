@@ -25,7 +25,7 @@ impl Deref for PixelsGuard<'_> {
     type Target = [u8];
 
     fn deref(&self) -> &[u8] {
-        &self.pixels
+        self.pixels
     }
 }
 
@@ -106,7 +106,7 @@ impl Surface {
     //
     // this takes `&mut` even though its not needed to lock the structure,
     // so that you can't resize or modify while its locked.
-    pub fn lock_pixels<'a>(&'a mut self) -> PixelsGuard<'a> {
+    pub fn lock_pixels(&mut self) -> PixelsGuard {
         let raw_locked_pixels = unsafe { ul_sys::ulSurfaceLockPixels(self.internal) };
         let size = self.bytes_size() as usize;
         unsafe {
@@ -139,7 +139,7 @@ impl Surface {
     /// the last call to [`clear_dirty_bounds`](Surface::clear_dirty_bounds).
     ///
     /// The general algorithm to determine if a Surface needs display is:
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// if !surface.dirty_bounds().is_empty() {
     ///     // Surface pixels are dirty and needs display.
     ///     // Cast Surface to native Surface and use it here (pseudo code)

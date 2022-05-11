@@ -266,8 +266,10 @@ pub enum GpuCommand {
     },
     /// Performs a draw command.
     DrawGeometry {
+        // `gpu_state` is boxed because its too large, and its not good
+        // to have large difference in size between the two variants in enum.
         /// The GPU state to use for the draw command. (contain the `render_buffer_id`)
-        gpu_state: GpuState,
+        gpu_state: Box<GpuState>,
         /// The geometry (vertex_buffer/index_buffer pair) to be used for the draw command.
         geometry_id: u32,
         /// The index offset to start drawing from in the `index_buffer`.
@@ -283,7 +285,7 @@ impl TryFrom<ul_sys::ULCommand> for GpuCommand {
     fn try_from(gc: ul_sys::ULCommand) -> Result<Self, Self::Error> {
         match gc.command_type as u32 {
             ul_sys::ULCommandType_kCommandType_DrawGeometry => Ok(GpuCommand::DrawGeometry {
-                gpu_state: GpuState::try_from(gc.gpu_state)?,
+                gpu_state: Box::new(GpuState::try_from(gc.gpu_state)?),
                 geometry_id: gc.geometry_id,
                 indices_count: gc.indices_count,
                 indices_offset: gc.indices_offset,

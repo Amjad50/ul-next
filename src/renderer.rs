@@ -241,7 +241,7 @@ impl Renderer {
         view_config: &ViewConfig,
         session: Option<&Session>,
     ) -> View {
-        unsafe { View::create(self.internal, width, height, &view_config, session) }
+        unsafe { View::create(self.internal, width, height, view_config, session) }
     }
 }
 
