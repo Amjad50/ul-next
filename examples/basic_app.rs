@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use rust_ul_next::{app::App, platform::Platform, window::WindowFlags};
+use rust_ul_next::{app::App, platform, window::WindowFlags};
 
 /// This example is ported from the `Ultralight` main repository.
 
@@ -20,7 +20,7 @@ use rust_ul_next::{app::App, platform::Platform, window::WindowFlags};
 fn main() {
     // set the origin file system, require `resources` folder, which can be
     // obtained from `Ultralight sdk`
-    Platform::enable_platform_file_system(".");
+    platform::enable_platform_file_system(".");
 
     // use default settings and configs
     let app = App::new(None, None);

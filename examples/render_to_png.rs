@@ -10,7 +10,7 @@ use std::{
 
 use rust_ul_next::{
     config::Config,
-    platform::{LogLevel, Logger, Platform},
+    platform::{self, LogLevel, Logger},
     renderer::Renderer,
     view::ViewConfig,
 };
@@ -42,29 +42,29 @@ fn main() {
     //
     // The Platform API handlers we can set are:
     //
-    //  - Platform::set_logger          (empty, optional, supported)
-    //  - Platform::set_gpu_driver      (empty, optional, not supported)
-    //  - Platform::set_font_loader     (empty, **required**, not supported)
-    //  - Platform::set_file_system     (empty, optional, not supported)
-    //  - Platform::set_clipboard       (empty, optional, supported)
-    //  - Platform::set_surface_factory (defaults to BitmapSurfaceFactory, **required**, not supported)
+    //  - platform::set_logger          (empty, optional, supported)
+    //  - jlatform::set_gpu_driver      (empty, optional, not supported)
+    //  - platform::set_font_loader     (empty, **required**, not supported)
+    //  - platform::set_file_system     (empty, optional, not supported)
+    //  - platform::set_clipboard       (empty, optional, supported)
+    //  - platform::set_surface_factory (defaults to BitmapSurfaceFactory, **required**, not supported)
     //
     // The only Platform API handler we are required to provide is a font loader.
     // we can't use a custom font loader yet, but we can use the default one.
-    Platform::enable_platform_fontloader();
+    platform::enable_platform_fontloader();
 
     // use the default file_system and we specify the root path, which
     // all `file:///` URLs will be resolved against.
     //
     // NOTE: custom file_system is still not supported in this library
-    Platform::enable_platform_file_system(".");
+    platform::enable_platform_file_system(".");
 
     // Register a logger that logs messages to the console.
     //
-    // We can use [`Platform::enable_default_logger`] and provide a log file
+    // We can use [`platform::enable_default_logger`] and provide a log file
     // to log to it.
-    Platform::set_logger(MyLogger);
-    Platform::enable_default_logger("./log.log");
+    platform::set_logger(MyLogger);
+    platform::enable_default_logger("./log.log");
 
     // Create our Renderer (you should only create this once per application).
     //

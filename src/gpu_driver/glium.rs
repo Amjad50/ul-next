@@ -37,7 +37,7 @@ use super::{GpuCommand, GpuDriver, IndexBuffer, RenderBuffer, VertexBuffer, Vert
 /// # Examples
 /// ```no_run
 /// let (sender, mut receiver) = create_gpu_driver(&display);
-/// Platform::set_gpu_driver(sender);
+/// platform::set_gpu_driver(sender);
 ///
 /// renderer.render(); // will dispatch and send all events to `reciever` from `ultralight`
 /// receiver.render(); // will render all events received from `sender`
@@ -195,7 +195,7 @@ impl GliumDriverVertexBuffer {
 /// A [`GpuDriver`] implemented for integrating with `glium`.
 ///
 /// Since `glium` is a single threaded library, and [`GpuDriver`] need to implement
-/// [`Send`] to be used in [`Platform::set_gpu_driver`](crate::platform::Platform::set_gpu_driver),
+/// [`Send`] to be used in [`platform::set_gpu_driver`](crate::platform::set_gpu_driver),
 /// we used a **Sender/Receiver** design here, where this is the sender and the receiver is
 /// [`GliumGpuDriverReceiver`], which will handle all the sent commands from here,
 /// and render them into textures.
@@ -385,7 +385,7 @@ impl Facade for GluimContextWrapper {
 /// The receiver part of [`GliumGpuDriverSender`].
 ///
 /// Since `glium` is a single threaded library, and [`GpuDriver`] need to implement
-/// [`Send`] to be used in [`Platform::set_gpu_driver`](crate::platform::Platform::set_gpu_driver),
+/// [`Send`] to be used in [`platform::set_gpu_driver`](crate::platform::set_gpu_driver),
 /// we used a **Sender/Receiver** design here, where [`GliumGpuDriverSender`]
 /// is the sender and the receiver is this struct, when calling [`GliumGpuDriverReceiver::render`],
 /// we will render all the commands we get from [`GliumGpuDriverSender`] into textures
@@ -523,7 +523,7 @@ impl GliumGpuDriverReceiver {
     /// which will be generated when calling [`Renderer::render`](crate::renderer::Renderer::render).
     ///
     /// **Note that this must be called for rendering to actually occure, as using**
-    /// **[`Platform::set_gpu_driver`](crate::platform::Platform::set_gpu_driver) alone**
+    /// **[`platform::set_gpu_driver`](crate::platform::set_gpu_driver) alone**
     /// **with [`GliumGpuDriverSender`] is not enough.**
     pub fn render(&mut self) {
         while let Ok(cmd) = self.receiver.try_recv() {

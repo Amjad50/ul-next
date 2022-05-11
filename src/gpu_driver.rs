@@ -307,7 +307,7 @@ impl TryFrom<ul_sys::ULCommand> for GpuCommand {
 /// If you are using [`Renderer::create`](crate::renderer::Renderer::create),
 /// you will need to provide your own implementation of this trait if you
 /// have enabled the GPU renderer in the Config.
-/// (See [`Platform::set_gpu_driver`](crate::platform::Platform::set_gpu_driver)).
+/// (See [`platform::set_gpu_driver`](crate::platform::set_gpu_driver)).
 pub trait GpuDriver {
     /// Called before any commands are dispatched during a frame.
     fn begin_synchronize(&mut self);

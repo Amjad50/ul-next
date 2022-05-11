@@ -1,9 +1,18 @@
+//! A container for Rectangle structure.
 #[derive(Clone, Copy, Debug)]
+/// Rectangle structure
 pub struct Rect<T> {
     pub left: T,
     pub top: T,
     pub right: T,
     pub bottom: T,
+}
+
+impl Rect<i32> {
+    /// Whether the rectangle is empty or not.
+    pub fn is_empty(&self) -> bool {
+        self.left == 0 && self.top == 0 && self.right == 0 && self.bottom == 0
+    }
 }
 
 impl From<ul_sys::ULRect> for Rect<f32> {

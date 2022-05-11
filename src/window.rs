@@ -2,6 +2,7 @@ use std::{self, ffi::CString};
 
 use crate::{overlay::Overlay, view::View};
 
+/// Cursor types (See [`View::set_change_cursor_callback`])
 #[derive(Clone, Copy, Debug)]
 pub enum Cursor {
     Alias = ul_sys::ULCursor_kCursor_Alias as isize,
@@ -268,10 +269,23 @@ impl Window {
 }
 
 impl Window {
+    /// Create a new Overlay.
+    ///
+    /// # Arguments
+    /// * `width` - The width in pixels.
+    /// * `height` - The height in pixels.
+    /// * `x` - The x-position (offset from the left of this Window), in pixels.
+    /// * `y` - The y-position (offset from the top of this Window), in pixels.
     pub fn create_overlay(&self, width: u32, height: u32, x: i32, y: i32) -> Overlay {
         unsafe { Overlay::create(self.internal, width, height, x, y) }
     }
 
+    /// Create a new Overlay, wrapping an existing view.
+    ///
+    /// # Arguments
+    /// * `view` - The view to wrap (will use its width and height).
+    /// * `x` - The x-position (offset from the left of this Window), in pixels.
+    /// * `y` - The y-position (offset from the top of this Window), in pixels.
     pub fn create_overlay_with_view(&self, view: View, x: i32, y: i32) -> Overlay {
         unsafe { Overlay::create_with_view(self.internal, view, x, y) }
     }

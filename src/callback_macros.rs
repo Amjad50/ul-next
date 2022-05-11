@@ -125,6 +125,7 @@ macro_rules! platform_set_interface_macro {
             )+
         }
     } => {
+        $(#[$attr])*
         $vis fn $setter_name<T: $rust_ty + Send + 'static>($setter_arg_name: T) {
             let $setter_arg_name = Box::new($setter_arg_name);
             *$static_name.lock().unwrap() = Some($setter_arg_name);

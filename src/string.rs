@@ -1,31 +1,29 @@
 use std::slice;
 
+/// A rust wrapper around [`ul_sys::ULString`], which is used in ultralight
+/// functions.
 pub(crate) struct UlString {
     internal: ul_sys::ULString,
 }
 
 impl UlString {
-    // will copy to a Rust string and destroys the original
-    pub(crate) unsafe fn move_raw_to_string(internal: ul_sys::ULString) -> String {
-        let s = Self::copy_raw_to_string(internal);
-
-        let ul_string = Self { internal };
-        drop(ul_string);
-
-        s
-    }
-
+    /// Creates a new `UlString` from a `&str`.
     pub(crate) unsafe fn from_str(s: &str) -> Self {
         let internal =
             ul_sys::ulCreateStringUTF8(s.as_bytes().as_ptr() as *const i8, s.len() as u64);
         Self { internal }
     }
 
+    /// Returns the underlying [`ul_sys::ULString`] struct, to be used locally for
+    /// calling the underlying C API.
     pub(crate) unsafe fn to_ul(&self) -> ul_sys::ULString {
         self.internal
     }
 
-    // create a rust String copy without destroying the original
+    /// create a rust String copy without destroying the original
+    ///
+    /// Some ultralight APIs owns the string, so we can't destroy it, its always
+    /// safer to make our own copy.
     pub(crate) unsafe fn copy_raw_to_string(raw: ul_sys::ULString) -> String {
         let utf8_data = slice::from_raw_parts(
             ul_sys::ulStringGetData(raw),

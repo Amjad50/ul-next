@@ -52,8 +52,8 @@ impl Drop for Config {
     }
 }
 
-#[derive(Default)]
 /// Builder for the [`Config`] struct.
+#[derive(Default)]
 pub struct ConfigBuilder {
     cache_path: Option<String>,
     resource_path_prefix: Option<String>,

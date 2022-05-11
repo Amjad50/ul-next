@@ -5,7 +5,7 @@ use glium::{
     uniform, Display, Surface,
 };
 use glium::{index::PrimitiveType, program::ProgramCreationInput, Program};
-use rust_ul_next::{config::Config, platform::Platform, renderer::Renderer, view::ViewConfig};
+use rust_ul_next::{config::Config, platform, renderer::Renderer, view::ViewConfig};
 
 fn main() {
     let event_loop = EventLoop::new();
@@ -16,14 +16,14 @@ fn main() {
     let config = Config::start().build();
 
     // basic setup (check `render_to_png` for full explanation)
-    Platform::enable_platform_fontloader();
-    Platform::enable_platform_file_system(".");
-    Platform::enable_default_logger("./log.log");
+    platform::enable_platform_fontloader();
+    platform::enable_platform_file_system(".");
+    platform::enable_default_logger("./log.log");
 
     // use `glium` gpu driver, which is included in the library under the
     // feature `glium`
     let (sender, mut receiver) = rust_ul_next::gpu_driver::glium::create_gpu_driver(&display);
-    Platform::set_gpu_driver(sender);
+    platform::set_gpu_driver(sender);
 
     let renderer = Renderer::create(config);
 

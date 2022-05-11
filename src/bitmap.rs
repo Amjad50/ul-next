@@ -49,7 +49,8 @@ impl BitmapFormat {
     }
 }
 
-/// An RAII implementation of a “scoped lock” of a pixel buffer for [`Bitmap`]. When this structure is dropped (falls out of scope), the lock will be unlocked.
+/// An RAII implementation of a “scoped lock” of a pixel buffer for [`Bitmap`].
+/// When this structure is dropped (falls out of scope), the lock will be unlocked.
 ///
 /// This struct is created by [`Bitmap::lock_pixels`].
 pub struct PixelsGuard<'a> {
@@ -223,6 +224,7 @@ impl Bitmap {
         }
     }
 
+    /// Internal unlock the pixel buffer.
     pub(crate) unsafe fn raw_unlock_pixels(&mut self) {
         ul_sys::ulBitmapUnlockPixels(self.internal);
     }
