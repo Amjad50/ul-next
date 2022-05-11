@@ -1,6 +1,7 @@
 //! The View is a component used to load and display web content.
 use crate::{
     bitmap::BitmapFormat,
+    error::CreationError,
     event::{KeyEvent, MouseEvent, ScrollEvent},
     rect::Rect,
     renderer::Session,
@@ -269,8 +270,14 @@ impl ViewConfigBuilder {
     }
 
     /// Builds the [`ViewConfig`] struct using the settings configured in this builder.
-    pub fn build(self) -> ViewConfig {
+    ///
+    /// Returns [`None`] if failed to create [`ViewConfig`].
+    pub fn build(self) -> Option<ViewConfig> {
         let internal = unsafe { ul_sys::ulCreateViewConfig() };
+
+        if internal.is_null() {
+            return None;
+        }
 
         set_config!(internal, self.is_accelerated, ulViewConfigSetIsAccelerated);
         set_config!(internal, self.is_transparent, ulViewConfigSetIsTransparent);
@@ -308,7 +315,7 @@ impl ViewConfigBuilder {
         );
         set_config_str!(internal, self.user_agent, ulViewConfigSetUserAgent);
 
-        ViewConfig { internal }
+        Some(ViewConfig { internal })
     }
 }
 
@@ -336,10 +343,14 @@ pub struct View {
 impl View {
     /// Helper internal function to allow getting a reference to a managed
     /// session.
-    pub(crate) unsafe fn from_raw(raw: ul_sys::ULView) -> Self {
-        Self {
-            internal: raw,
-            need_to_destroy: false,
+    pub(crate) unsafe fn from_raw(raw: ul_sys::ULView) -> Option<Self> {
+        if raw.is_null() {
+            None
+        } else {
+            Some(Self {
+                internal: raw,
+                need_to_destroy: false,
+            })
         }
     }
 
@@ -351,7 +362,7 @@ impl View {
         height: u32,
         view_config: &ViewConfig,
         session: Option<&Session>,
-    ) -> Self {
+    ) -> Option<Self> {
         let internal = ul_sys::ulCreateView(
             renderer,
             width,
@@ -360,9 +371,13 @@ impl View {
             session.map(|s| s.to_ul()).unwrap_or(std::ptr::null_mut()),
         );
 
-        Self {
-            internal,
-            need_to_destroy: true,
+        if internal.is_null() {
+            None
+        } else {
+            Some(Self {
+                internal,
+                need_to_destroy: true,
+            })
         }
     }
 
@@ -375,7 +390,7 @@ impl View {
 
 impl View {
     /// Get the URL of the current page loaded into this View, if any.
-    pub fn url(&self) -> String {
+    pub fn url(&self) -> Result<String, CreationError> {
         unsafe {
             let url_string = ul_sys::ulViewGetURL(self.internal);
             UlString::copy_raw_to_string(url_string)
@@ -383,7 +398,7 @@ impl View {
     }
 
     /// Get the title of the current page loaded into this View, if any.
-    pub fn title(&self) -> String {
+    pub fn title(&self) -> Result<String, CreationError> {
         unsafe {
             let title_string = ul_sys::ulViewGetTitle(self.internal);
             UlString::copy_raw_to_string(title_string)
@@ -458,21 +473,23 @@ impl View {
     }
 
     /// Load a raw string of HTML, the View will navigate to it as a new page.
-    pub fn load_html(&self, html: &str) {
+    pub fn load_html(&self, html: &str) -> Result<(), CreationError> {
         unsafe {
-            let ul_string = UlString::from_str(html);
+            let ul_string = UlString::from_str(html)?;
             ul_sys::ulViewLoadHTML(self.internal, ul_string.to_ul());
         }
+        Ok(())
     }
 
     /// Load a URL, the View will navigate to it as a new page.
     ///
     /// You can use File URLs (eg, file:///page.html) as well.
-    pub fn load_url(&self, url: &str) {
+    pub fn load_url(&self, url: &str) -> Result<(), CreationError> {
         unsafe {
-            let ul_string = UlString::from_str(url);
+            let ul_string = UlString::from_str(url)?;
             ul_sys::ulViewLoadURL(self.internal, ul_string.to_ul());
         }
+        Ok(())
     }
 
     /// Resize View to a certain size.
@@ -499,9 +516,9 @@ impl View {
     /// You can pass the raw Javascript string in `script`, if an exception occurs
     /// it will be returned in [`Err`], otherwise a string result in [`Ok`] will be
     /// returned.
-    pub fn evaluate_script(&self, script: &str) -> Result<String, String> {
+    pub fn evaluate_script(&self, script: &str) -> Result<Result<String, String>, CreationError> {
         unsafe {
-            let ul_script_string = UlString::from_str(script);
+            let ul_script_string = UlString::from_str(script)?;
             // a dummy value, it will be replaced by the actual result
             let mut exception_string = 1 as ul_sys::ULString;
             let result_string = ul_sys::ulViewEvaluateScript(
@@ -512,11 +529,11 @@ impl View {
 
             let has_exception = !ul_sys::ulStringIsEmpty(exception_string);
             if has_exception {
-                let exception_string = UlString::copy_raw_to_string(exception_string);
-                Err(exception_string)
+                let exception_string = UlString::copy_raw_to_string(exception_string)?;
+                Ok(Err(exception_string))
             } else {
-                let result_string = UlString::copy_raw_to_string(result_string);
-                Ok(result_string)
+                let result_string = UlString::copy_raw_to_string(result_string)?;
+                Ok(Ok(result_string))
             }
         }
     }
@@ -616,8 +633,8 @@ impl View {
         /// * `title: String` - The new title
         pub fn set_change_title_callback(&self, callback: FnMut(view: &View, title: String)) :
            ulViewSetChangeTitleCallback(ul_view: ul_sys::ULView, ul_title: ul_sys::ULString) {
-               let view = &View::from_raw(ul_view);
-               let title = UlString::copy_raw_to_string(ul_title);
+               let view = &View::from_raw(ul_view).unwrap();
+               let title = UlString::copy_raw_to_string(ul_title).unwrap();
         }
     }
 
@@ -629,8 +646,8 @@ impl View {
         /// * `url: String` - The new url
         pub fn set_change_url_callback(&self, callback: FnMut(view: &View, url: String)) :
            ulViewSetChangeURLCallback(ul_view: ul_sys::ULView, ul_url: ul_sys::ULString) {
-               let view = &View::from_raw(ul_view);
-               let url = UlString::copy_raw_to_string(ul_url);
+               let view = &View::from_raw(ul_view).unwrap();
+               let url = UlString::copy_raw_to_string(ul_url).unwrap();
         }
     }
 
@@ -642,8 +659,8 @@ impl View {
         /// * `tooltip: String` - The tooltip string
         pub fn set_change_tooltip_callback(&self, callback: FnMut(view: &View, tooltip: String)) :
            ulViewSetChangeTooltipCallback(ul_view: ul_sys::ULView, ul_tooltip: ul_sys::ULString) {
-               let view = &View::from_raw(ul_view);
-               let tooltip = UlString::copy_raw_to_string(ul_tooltip);
+               let view = &View::from_raw(ul_view).unwrap();
+               let tooltip = UlString::copy_raw_to_string(ul_tooltip).unwrap();
         }
     }
 
@@ -655,8 +672,7 @@ impl View {
         /// * `cursor: Cursor` - The cursor type
         pub fn set_change_cursor_callback(&self, callback: FnMut(view: &View, cursor: Cursor)) :
            ulViewSetChangeCursorCallback(ul_view: ul_sys::ULView, ul_cursor: ul_sys::ULCursor) {
-               let view = &View::from_raw(ul_view);
-               // TODO: handle strings
+               let view = &View::from_raw(ul_view).unwrap();
                let cursor = Cursor::try_from(ul_cursor).unwrap();
         }
     }
@@ -689,11 +705,11 @@ impl View {
                column_number :u32,
                ul_source_id: ul_sys::ULString
             ) {
-               let view = &View::from_raw(ul_view);
+               let view = &View::from_raw(ul_view).unwrap();
                let message_source = ConsoleMessageSource::try_from(ul_message_source).unwrap();
                let message_level = ConsoleMessageLevel::try_from(ul_message_level).unwrap();
-               let message = UlString::copy_raw_to_string(ul_message);
-               let source_id = UlString::copy_raw_to_string(ul_source_id);
+               let message = UlString::copy_raw_to_string(ul_message).unwrap();
+               let source_id = UlString::copy_raw_to_string(ul_source_id).unwrap();
         }
     }
 
@@ -741,9 +757,9 @@ impl View {
                is_popup: bool,
                ul_popup_rect: ul_sys::ULIntRect
             ) -> ul_sys::ULView {
-               let view = &View::from_raw(ul_view);
-               let opener_url = UlString::copy_raw_to_string(ul_opener_url);
-               let target_url = UlString::copy_raw_to_string(ul_target_url);
+               let view = &View::from_raw(ul_view).unwrap();
+               let opener_url = UlString::copy_raw_to_string(ul_opener_url).unwrap();
+               let target_url = UlString::copy_raw_to_string(ul_target_url).unwrap();
                let popup_rect = Rect::from(ul_popup_rect);
         } {
             if let Some(ret_view) = ret_view {
@@ -773,8 +789,8 @@ impl View {
                is_main_frame: bool,
                ul_url: ul_sys::ULString
             ) {
-               let view = &View::from_raw(ul_view);
-               let url = UlString::copy_raw_to_string(ul_url);
+               let view = &View::from_raw(ul_view).unwrap();
+               let url = UlString::copy_raw_to_string(ul_url).unwrap();
         }
     }
 
@@ -797,8 +813,8 @@ impl View {
                is_main_frame: bool,
                ul_url: ul_sys::ULString
             ) {
-               let view = &View::from_raw(ul_view);
-               let url = UlString::copy_raw_to_string(ul_url);
+               let view = &View::from_raw(ul_view).unwrap();
+               let url = UlString::copy_raw_to_string(ul_url).unwrap();
         }
     }
 
@@ -830,10 +846,10 @@ impl View {
                ul_error_domain: ul_sys::ULString,
                error_code: i32
             ) {
-               let view = &View::from_raw(ul_view);
-               let url = UlString::copy_raw_to_string(ul_url);
-               let description = UlString::copy_raw_to_string(ul_description);
-               let error_domain = UlString::copy_raw_to_string(ul_error_domain);
+               let view = &View::from_raw(ul_view).unwrap();
+               let url = UlString::copy_raw_to_string(ul_url).unwrap();
+               let description = UlString::copy_raw_to_string(ul_description).unwrap();
+               let error_domain = UlString::copy_raw_to_string(ul_error_domain).unwrap();
         }
     }
 
@@ -865,8 +881,8 @@ impl View {
                is_main_frame: bool,
                ul_url: ul_sys::ULString
             ) {
-               let view = &View::from_raw(ul_view);
-               let url = UlString::copy_raw_to_string(ul_url);
+               let view = &View::from_raw(ul_view).unwrap();
+               let url = UlString::copy_raw_to_string(ul_url).unwrap();
         }
     }
 
@@ -892,8 +908,8 @@ impl View {
                is_main_frame: bool,
                ul_url: ul_sys::ULString
             ) {
-               let view = &View::from_raw(ul_view);
-               let url = UlString::copy_raw_to_string(ul_url);
+               let view = &View::from_raw(ul_view).unwrap();
+               let url = UlString::copy_raw_to_string(ul_url).unwrap();
         }
     }
 
@@ -904,7 +920,7 @@ impl View {
         /// * `view: &View` - The view that fired the event (eg. self)
         pub fn set_update_history_callback(&self, callback: FnMut(view: &View)) :
            ulViewSetUpdateHistoryCallback(ul_view: ul_sys::ULView) {
-               let view = &View::from_raw(ul_view);
+               let view = &View::from_raw(ul_view).unwrap();
         }
     }
 
@@ -931,13 +947,17 @@ impl View {
     /// The initial dimensions of the returned View are 10x10, you should
     /// call [`View::resize`] on the returned View to resize it to your desired
     /// dimensions.
-    pub fn create_inspector_view(&self) -> View {
+    pub fn create_inspector_view(&self) -> Result<View, CreationError> {
         unsafe {
             let inspector_view = ul_sys::ulViewCreateInspectorView(self.internal);
-            // we need to destroy the view when its dropped, its not owned by anyone
-            View {
-                internal: inspector_view,
-                need_to_destroy: true,
+            if inspector_view.is_null() {
+                Err(CreationError::NullReference)
+            } else {
+                // we need to destroy the view when its dropped, its not owned by anyone
+                Ok(View {
+                    internal: inspector_view,
+                    need_to_destroy: true,
+                })
             }
         }
     }

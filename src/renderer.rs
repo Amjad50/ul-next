@@ -9,6 +9,7 @@
 //! [`platform::set_gpu_driver`](crate::platform::set_gpu_driver).
 use crate::{
     config::Config,
+    error::CreationError,
     string::UlString,
     view::{View, ViewConfig},
 };
@@ -33,14 +34,18 @@ impl Session {
         renderer: ul_sys::ULRenderer,
         is_persistent: bool,
         name: &str,
-    ) -> Self {
-        let ul_string_name = UlString::from_str(name);
+    ) -> Result<Self, CreationError> {
+        let ul_string_name = UlString::from_str(name)?;
         let internal = ul_sys::ulCreateSession(renderer, is_persistent, ul_string_name.to_ul());
 
-        let id = ul_sys::ulSessionGetId(internal);
-        let disk_path = UlString::copy_raw_to_string(ul_sys::ulSessionGetDiskPath(internal));
+        if internal.is_null() {
+            return Err(CreationError::NullReference);
+        }
 
-        Self {
+        let id = ul_sys::ulSessionGetId(internal);
+        let disk_path = UlString::copy_raw_to_string(ul_sys::ulSessionGetDiskPath(internal))?;
+
+        Ok(Self {
             internal,
             need_to_destroy: true,
 
@@ -48,18 +53,22 @@ impl Session {
             name: name.to_string(),
             id,
             disk_path,
-        }
+        })
     }
 
     /// Helper internal function to allow getting a reference to a managed
     /// session.
-    pub(crate) unsafe fn from_raw(raw: ul_sys::ULSession) -> Self {
+    pub(crate) unsafe fn from_raw(raw: ul_sys::ULSession) -> Result<Self, CreationError> {
+        if raw.is_null() {
+            return Err(CreationError::NullReference);
+        }
+
         let id = ul_sys::ulSessionGetId(raw);
-        let disk_path = UlString::copy_raw_to_string(ul_sys::ulSessionGetDiskPath(raw));
-        let name = UlString::copy_raw_to_string(ul_sys::ulSessionGetName(raw));
+        let disk_path = UlString::copy_raw_to_string(ul_sys::ulSessionGetDiskPath(raw))?;
+        let name = UlString::copy_raw_to_string(ul_sys::ulSessionGetName(raw))?;
         let is_persistent = ul_sys::ulSessionIsPersistent(raw);
 
-        Self {
+        Ok(Self {
             internal: raw,
             need_to_destroy: false,
 
@@ -67,7 +76,7 @@ impl Session {
             name,
             id,
             disk_path,
-        }
+        })
     }
 
     /// Returns the underlying [`ul_sys::ULSession`] struct, to be used locally for
@@ -125,14 +134,18 @@ pub struct Renderer {
 
 impl Renderer {
     /// Internal helper to get a reference to the underlying Renderer.
-    pub(crate) unsafe fn from_raw(raw: ul_sys::ULRenderer) -> Self {
-        let default_session = Session::from_raw(ul_sys::ulDefaultSession(raw));
+    pub(crate) unsafe fn from_raw(raw: ul_sys::ULRenderer) -> Result<Self, CreationError> {
+        let raw_default_session = ul_sys::ulDefaultSession(raw);
+        if raw_default_session.is_null() {
+            return Err(CreationError::NullReference);
+        }
+        let default_session = Session::from_raw(raw_default_session)?;
 
-        Self {
+        Ok(Self {
             internal: raw,
             need_to_destroy: false,
             default_session,
-        }
+        })
     }
 
     /// Create the Ultralight Renderer directly.
@@ -160,15 +173,18 @@ impl Renderer {
     /// You should not call this if you are using [`App::new`](crate::app::App::new),
     /// it creates its own renderer and provides default implementations for
     /// various platform handlers automatically.
-    pub fn create(config: Config) -> Self {
+    pub fn create(config: Config) -> Result<Self, CreationError> {
         let internal = unsafe { ul_sys::ulCreateRenderer(config.to_ul()) };
-        let default_session = unsafe { Session::from_raw(ul_sys::ulDefaultSession(internal)) };
+        if internal.is_null() {
+            return Err(CreationError::NullReference);
+        }
+        let default_session = unsafe { Session::from_raw(ul_sys::ulDefaultSession(internal)) }?;
 
-        Self {
+        Ok(Self {
             internal,
             need_to_destroy: true,
             default_session,
-        }
+        })
     }
 }
 
@@ -216,7 +232,11 @@ impl Renderer {
     /// [`ConfigBuilder::cache_path`](crate::config::ConfigBuilder::cache_path).
     /// * `name` -  A unique name for this session, this will be used to
     /// generate a unique disk path for persistent sessions.
-    pub fn create_session(&self, is_persistent: bool, name: &str) -> Session {
+    pub fn create_session(
+        &self,
+        is_persistent: bool,
+        name: &str,
+    ) -> Result<Session, CreationError> {
         unsafe { Session::create(self.internal, is_persistent, name) }
     }
 
@@ -240,7 +260,7 @@ impl Renderer {
         height: u32,
         view_config: &ViewConfig,
         session: Option<&Session>,
-    ) -> View {
+    ) -> Option<View> {
         unsafe { View::create(self.internal, width, height, view_config, session) }
     }
 }

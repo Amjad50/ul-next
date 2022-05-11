@@ -36,7 +36,7 @@ impl Logger for MyLogger {
 fn main() {
     // create our config
     // we are using the defaults, but we can change that if we need
-    let config = Config::start().build();
+    let config = Config::start().build().unwrap();
 
     // Since we're not using App::Create(), we must provide our own Platform API handlers.
     //
@@ -57,14 +57,14 @@ fn main() {
     // all `file:///` URLs will be resolved against.
     //
     // NOTE: custom file_system is still not supported in this library
-    platform::enable_platform_file_system(".");
+    platform::enable_platform_file_system(".").unwrap();
 
     // Register a logger that logs messages to the console.
     //
     // We can use [`platform::enable_default_logger`] and provide a log file
     // to log to it.
     platform::set_logger(MyLogger);
-    platform::enable_default_logger("./log.log");
+    platform::enable_default_logger("./log.log").unwrap();
 
     // Create our Renderer (you should only create this once per application).
     //
@@ -72,7 +72,7 @@ fn main() {
     // creating any Views. It should outlive any Views.
     //
     // You should set up the Platform methods before creating this.
-    let renderer = Renderer::create(config);
+    let renderer = Renderer::create(config).unwrap();
 
     // Create our View.
     //
@@ -85,10 +85,13 @@ fn main() {
         .initial_device_scale(2.0)
         .font_family_standard("Arial")
         .is_accelerated(false)
-        .build();
+        .build()
+        .unwrap();
 
     // We use the default session by passing `None`.
-    let view = renderer.create_view(1600, 1600, &view_config, None);
+    let view = renderer
+        .create_view(1600, 1600, &view_config, None)
+        .unwrap();
 
     // we setup a listener to listen to event until the loading is finished
     let done = Rc::new(AtomicBool::new(false));
@@ -108,7 +111,7 @@ fn main() {
     //
     // Views can also load remote URLs, try replacing the code below with:
     //    view.load_url("https://en.wikipedia.org");
-    view.load_html(HTML_STRING);
+    view.load_html(HTML_STRING).unwrap();
 
     println!("starting main loop");
     // running the main loop and waiting until the loading is finished
@@ -140,7 +143,7 @@ fn main() {
     assert!(bytes_per_pixel == 4);
 
     // Get the raw pixels of the surface
-    let pixels = surface.lock_pixels();
+    let pixels = surface.lock_pixels().unwrap();
 
     // TODO: add support for the library's `Bitmap::write_png` method.
     println!("writing PNG file (this could take some time)");

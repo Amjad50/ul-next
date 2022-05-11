@@ -20,10 +20,10 @@ use rust_ul_next::{app::App, platform, window::WindowFlags};
 fn main() {
     // set the origin file system, require `resources` folder, which can be
     // obtained from `Ultralight sdk`
-    platform::enable_platform_file_system(".");
+    platform::enable_platform_file_system(".").unwrap();
 
     // use default settings and configs
-    let app = App::new(None, None);
+    let app = App::new(None, None).unwrap();
 
     // Create our Window.
     //
@@ -31,18 +31,20 @@ fn main() {
     //
     // The window's size (900 by 600) is in virtual device coordinates, the actual size in pixels
     // is automatically determined by the monitor's DPI.
-    let window = app.create_window(
-        900,
-        600,
-        false,
-        WindowFlags {
-            borderless: false,
-            titled: true,
-            resizable: true,
-            maximizable: true,
-            hidden: false,
-        },
-    );
+    let window = app
+        .create_window(
+            900,
+            600,
+            false,
+            WindowFlags {
+                borderless: false,
+                titled: true,
+                resizable: true,
+                maximizable: true,
+                hidden: false,
+            },
+        )
+        .unwrap();
 
     window.set_title("Basic App");
 
@@ -53,10 +55,12 @@ fn main() {
     //
     // AppCore automatically manages focus, keyboard/mouse input, and GPU painting for each active
     // overlay. Dropping the overlay will remove it from the window.
-    let overlay = window.create_overlay(window.width(), window.height(), 0, 0);
+    let overlay = window
+        .create_overlay(window.width(), window.height(), 0, 0)
+        .unwrap();
 
     // Load a string of HTML into our overlay's View
-    overlay.view().load_html(HTML_STRING);
+    overlay.view().load_html(HTML_STRING).unwrap();
 
     // add window resize event callback to resize overlay when window is resized
     window.set_resize_callback(move |_window, width, height| {

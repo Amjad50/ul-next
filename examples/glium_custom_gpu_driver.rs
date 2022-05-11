@@ -13,28 +13,30 @@ fn main() {
     let cb = ContextBuilder::new().with_srgb(false);
     let display = Display::new(wb, cb, &event_loop).unwrap();
 
-    let config = Config::start().build();
+    let config = Config::start().build().unwrap();
 
     // basic setup (check `render_to_png` for full explanation)
     platform::enable_platform_fontloader();
-    platform::enable_platform_file_system(".");
-    platform::enable_default_logger("./log.log");
+    platform::enable_platform_file_system(".").unwrap();
+    platform::enable_default_logger("./log.log").unwrap();
 
     // use `glium` gpu driver, which is included in the library under the
     // feature `glium`
-    let (sender, mut receiver) = rust_ul_next::gpu_driver::glium::create_gpu_driver(&display);
+    let (sender, mut receiver) =
+        rust_ul_next::gpu_driver::glium::create_gpu_driver(&display).unwrap();
     platform::set_gpu_driver(sender);
 
-    let renderer = Renderer::create(config);
+    let renderer = Renderer::create(config).unwrap();
 
     let view_config = ViewConfig::start()
         .initial_device_scale(1.0)
         .is_accelerated(true)
-        .build();
+        .build()
+        .unwrap();
 
-    let view = renderer.create_view(900, 600, &view_config, None);
+    let view = renderer.create_view(900, 600, &view_config, None).unwrap();
 
-    view.load_html(HTML_STRING);
+    view.load_html(HTML_STRING).unwrap();
 
     // create vertex/index buffers and program which will be used
     // to blit the `rendered` texture from the GPU driver to the window.
@@ -128,7 +130,7 @@ fn main() {
         // painting
         renderer.render();
         // flush the drawing commands
-        receiver.render();
+        receiver.render().unwrap();
 
         let render_target = view.render_target().unwrap();
 

@@ -1,6 +1,6 @@
 //! Events that can be fired in [`View`](crate::view::View)s.
 
-use crate::string::UlString;
+use crate::{error::CreationError, string::UlString};
 
 #[derive(Clone, Copy)]
 /// The type of the [`KeyEvent`].
@@ -108,10 +108,10 @@ pub struct KeyEvent {
 
 impl KeyEvent {
     /// Create a new `KeyEvent`.
-    pub fn new(creation_info: KeyEventCreationInfo) -> KeyEvent {
-        let ul_string_text = unsafe { UlString::from_str(creation_info.text) };
+    pub fn new(creation_info: KeyEventCreationInfo) -> Result<KeyEvent, CreationError> {
+        let ul_string_text = unsafe { UlString::from_str(creation_info.text) }?;
         let ul_string_unmodified_text =
-            unsafe { UlString::from_str(creation_info.unmodified_text) };
+            unsafe { UlString::from_str(creation_info.unmodified_text) }?;
 
         let internal = unsafe {
             ul_sys::ulCreateKeyEvent(
@@ -127,7 +127,11 @@ impl KeyEvent {
             )
         };
 
-        Self { internal }
+        if internal.is_null() {
+            Err(CreationError::NullReference)
+        } else {
+            Ok(Self { internal })
+        }
     }
 
     /// Returns the underlying [`ul_sys::ULKeyEvent`] struct, to be used locally for
@@ -179,10 +183,19 @@ impl MouseEvent {
     /// * `x` - The x-position of the mouse. relative to the view.
     /// * `y` - The y-position of the mouse. relative to the view.
     /// * `button` - The button that was pressed or released if any.
-    pub fn new(ty: MouseEventType, x: i32, y: i32, button: MouseButton) -> MouseEvent {
+    pub fn new(
+        ty: MouseEventType,
+        x: i32,
+        y: i32,
+        button: MouseButton,
+    ) -> Result<MouseEvent, CreationError> {
         let internal = unsafe { ul_sys::ulCreateMouseEvent(ty as u32, x, y, button as u32) };
 
-        Self { internal }
+        if internal.is_null() {
+            Err(CreationError::NullReference)
+        } else {
+            Ok(Self { internal })
+        }
     }
 
     /// Returns the underlying [`ul_sys::ULMouseEvent`] struct, to be used locally for
@@ -222,10 +235,18 @@ impl ScrollEvent {
     /// * `ty` - The type of the event.
     /// * `delta_x` - The horizontal scroll amount.
     /// * `delta_y` - The vertical scroll amount.
-    pub fn new(ty: ScrollEventType, delta_x: i32, delta_y: i32) -> ScrollEvent {
+    pub fn new(
+        ty: ScrollEventType,
+        delta_x: i32,
+        delta_y: i32,
+    ) -> Result<ScrollEvent, CreationError> {
         let internal = unsafe { ul_sys::ulCreateScrollEvent(ty as u32, delta_x, delta_y) };
 
-        Self { internal }
+        if internal.is_null() {
+            Err(CreationError::NullReference)
+        } else {
+            Ok(Self { internal })
+        }
     }
 
     /// Returns the underlying [`ul_sys::ULScrollEvent`] struct, to be used locally for

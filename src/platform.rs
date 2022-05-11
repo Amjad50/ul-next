@@ -6,6 +6,7 @@
 use std::{path::Path, sync::Mutex};
 
 use crate::{
+    error::CreationError,
     gpu_driver::{self, GpuDriver},
     string::UlString,
 };
@@ -95,7 +96,7 @@ platform_set_interface_macro! {
         // TODO: handle errors
         log_message((ul_log_level: u32, ul_message: ul_sys::ULString)) -> ((log_level: u32, message: String)) {
             let log_level = LogLevel::try_from(ul_log_level).unwrap();
-            let message = UlString::copy_raw_to_string(ul_message);
+            let message = UlString::copy_raw_to_string(ul_message).unwrap();
         }
     }
 }
@@ -120,12 +121,12 @@ platform_set_interface_macro! {
             // no need to preprocess since we're returning a string
         } {
             if let Some(result) = result {
-                let result = UlString::from_str(&result);
+                let result = UlString::from_str(&result).unwrap();
                 ul_sys::ulStringAssignString(ul_result, result.to_ul());
             }
         }
         write_plain_text((ul_text: ul_sys::ULString)) -> ((text: &String)) {
-            let text = UlString::copy_raw_to_string(ul_text);
+            let text = UlString::copy_raw_to_string(ul_text).unwrap();
             let text = &text;
         }
     }
@@ -151,12 +152,13 @@ pub fn set_gpu_driver<G: GpuDriver + Send + 'static>(driver: G) {
 /// This is only needed if you are not calling [`App::new`](crate::app::App::new)
 ///
 /// You should specify a writable log path to write the log to for example “./ultralight.log”.
-pub fn enable_default_logger<P: AsRef<Path>>(log_path: P) {
+pub fn enable_default_logger<P: AsRef<Path>>(log_path: P) -> Result<(), CreationError> {
     unsafe {
         // TODO: handle error
-        let log_path = UlString::from_str(log_path.as_ref().to_str().unwrap());
+        let log_path = UlString::from_str(log_path.as_ref().to_str().unwrap())?;
         ul_sys::ulEnableDefaultLogger(log_path.to_ul());
     }
+    Ok(())
 }
 
 /// Initializes the platform font loader and sets it as the current FontLoader.
@@ -173,10 +175,11 @@ pub fn enable_platform_fontloader() {
 /// This is only needed if you are not calling [`App::new`](crate::app::App::new)
 ///
 /// You can specify a base directory path to resolve relative paths against
-pub fn enable_platform_file_system<P: AsRef<Path>>(base_dir: P) {
+pub fn enable_platform_file_system<P: AsRef<Path>>(base_dir: P) -> Result<(), CreationError> {
     unsafe {
         // TODO: handle error
-        let base_dir = UlString::from_str(base_dir.as_ref().to_str().unwrap());
+        let base_dir = UlString::from_str(base_dir.as_ref().to_str().unwrap())?;
         ul_sys::ulEnablePlatformFileSystem(base_dir.to_ul());
     }
+    Ok(())
 }

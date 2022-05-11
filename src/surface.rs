@@ -99,19 +99,22 @@ impl Surface {
         unsafe { ul_sys::ulSurfaceGetSize(self.internal) }
     }
 
-    // TODO: add error handling
     /// Lock the pixel buffer for reading/writing.
     ///
     /// An RAII guard is returned that will unlock the buffer when dropped.
     //
     // this takes `&mut` even though its not needed to lock the structure,
     // so that you can't resize or modify while its locked.
-    pub fn lock_pixels(&mut self) -> PixelsGuard {
+    pub fn lock_pixels(&mut self) -> Option<PixelsGuard> {
         let raw_locked_pixels = unsafe { ul_sys::ulSurfaceLockPixels(self.internal) };
+        if raw_locked_pixels.is_null() {
+            return None;
+        }
+
         let size = self.bytes_size() as usize;
         unsafe {
             let data = std::slice::from_raw_parts_mut(raw_locked_pixels as _, size);
-            PixelsGuard::new(self, data)
+            Some(PixelsGuard::new(self, data))
         }
     }
 

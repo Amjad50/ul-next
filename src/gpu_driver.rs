@@ -89,6 +89,9 @@ impl TryFrom<ul_sys::ULVertexBuffer> for VertexBuffer {
     type Error = ();
 
     fn try_from(vb: ul_sys::ULVertexBuffer) -> Result<Self, Self::Error> {
+        if vb.data.is_null() {
+            return Err(());
+        }
         let format = VertexBufferFormat::try_from(vb.format)?;
         let buffer = unsafe { slice::from_raw_parts(vb.data, vb.size as usize) };
         Ok(VertexBuffer {
@@ -106,6 +109,7 @@ pub struct IndexBuffer {
 impl From<ul_sys::ULIndexBuffer> for IndexBuffer {
     fn from(vb: ul_sys::ULIndexBuffer) -> Self {
         assert!(vb.size % 4 == 0);
+        assert!(!vb.data.is_null());
         let index_slice = unsafe { slice::from_raw_parts(vb.data as _, vb.size as usize / 4) };
         IndexBuffer {
             buffer: index_slice.to_vec(),
@@ -359,17 +363,18 @@ pub trait GpuDriver {
 }
 
 platform_set_interface_macro! {
+    #[inline]
     pub(crate) set_gpu_driver<GpuDriver>(gpu_driver -> GPUDRIVER) -> ulPlatformSetGPUDriver(ULGPUDriver) {
         begin_synchronize() -> () {}
         end_synchronize() -> () {}
         next_texture_id(() -> u32) -> () {}
         create_texture((texture_id: u32, ul_bitmap: ul_sys::ULBitmap)) -> ((texture_id: u32, bitmap: OwnedBitmap)) {
-            let mut bitmap = Bitmap::from_raw(ul_bitmap);
-            let bitmap = OwnedBitmap::from_bitmap(&mut bitmap);
+            let mut bitmap = Bitmap::from_raw(ul_bitmap).unwrap();
+            let bitmap = OwnedBitmap::from_bitmap(&mut bitmap).unwrap();
         }
         update_texture((texture_id: u32, ul_bitmap: ul_sys::ULBitmap)) -> ((texture_id: u32, bitmap: OwnedBitmap)) {
-            let mut bitmap = Bitmap::from_raw(ul_bitmap);
-            let bitmap = OwnedBitmap::from_bitmap(&mut bitmap);
+            let mut bitmap = Bitmap::from_raw(ul_bitmap).unwrap();
+            let bitmap = OwnedBitmap::from_bitmap(&mut bitmap).unwrap();
         }
         destroy_texture((texture_id: u32)) -> ((texture_id: u32)) {}
         next_render_buffer_id(() -> u32) -> () {}
@@ -391,6 +396,7 @@ platform_set_interface_macro! {
         }
         destroy_geometry((geometry_id: u32)) -> ((geometry_id: u32)) {}
         update_command_list((ul_command_list: ul_sys::ULCommandList)) -> ((commands_list: Vec<GpuCommand>)) {
+            assert!(!ul_command_list.commands.is_null());
             let commands_slice = slice::from_raw_parts(ul_command_list.commands, ul_command_list.size as usize);
             let commands_list = commands_slice.iter().map(|gc| GpuCommand::try_from(*gc).unwrap()).collect();
         }

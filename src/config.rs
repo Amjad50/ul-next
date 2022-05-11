@@ -248,8 +248,14 @@ impl ConfigBuilder {
     }
 
     /// Builds the [`Config`] struct using the settings configured in this builder.
-    pub fn build(self) -> Config {
+    ///
+    /// Returns [`None`] if failed to create [`Config`].
+    pub fn build(self) -> Option<Config> {
         let internal = unsafe { ul_sys::ulCreateConfig() };
+
+        if internal.is_null() {
+            return None;
+        }
 
         set_config_str!(internal, self.cache_path, ulConfigSetCachePath);
         set_config_str!(
@@ -302,6 +308,6 @@ impl ConfigBuilder {
         set_config!(internal, self.max_update_time, ulConfigSetMaxUpdateTime);
         set_config!(internal, self.bitmap_alignment, ulConfigSetBitmapAlignment);
 
-        Config { internal }
+        Some(Config { internal })
     }
 }

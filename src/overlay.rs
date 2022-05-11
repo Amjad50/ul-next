@@ -23,14 +23,20 @@ impl Overlay {
         height: u32,
         x: i32,
         y: i32,
-    ) -> Self {
-        let overlay = ul_sys::ulCreateOverlay(window, width, height, x, y);
-        // the overlay owns the view, we can't need to destroy it on drop
-        let view = View::from_raw(ul_sys::ulOverlayGetView(overlay));
-        Self {
-            internal: overlay,
-            view,
+    ) -> Option<Self> {
+        let internal_overlay = ul_sys::ulCreateOverlay(window, width, height, x, y);
+
+        if internal_overlay.is_null() {
+            return None;
         }
+
+        let raw_view = ul_sys::ulOverlayGetView(internal_overlay);
+        // the overlay owns the view, we can't need to destroy it on drop
+        let view = View::from_raw(raw_view)?;
+        Some(Self {
+            internal: internal_overlay,
+            view,
+        })
     }
 
     /// Internal function helper to create an overlay with a view
@@ -40,12 +46,13 @@ impl Overlay {
         view: View,
         x: i32,
         y: i32,
-    ) -> Self {
-        let overlay = ul_sys::ulCreateOverlayWithView(window_raw, view.to_ul(), x, y);
-        Self {
-            internal: overlay,
-            view,
+    ) -> Option<Self> {
+        let internal = ul_sys::ulCreateOverlayWithView(window_raw, view.to_ul(), x, y);
+        if internal.is_null() {
+            return None;
         }
+
+        Some(Self { internal, view })
     }
 }
 

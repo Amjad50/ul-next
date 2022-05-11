@@ -8,6 +8,7 @@
 //! [`Renderer`](crate::renderer::Renderer) where you can implement your own
 //! [`GpuDriver`](crate::gpu_driver::GpuDriver) and integrate it with your project.
 use crate::config::Config;
+use crate::error::CreationError;
 use crate::renderer::Renderer;
 use crate::window::{Window, WindowFlags};
 
@@ -100,8 +101,14 @@ impl SettingsBuilder {
     }
 
     /// Builds the [`Settings`] struct using the settings configured in this builder.
-    pub fn build(self) -> Settings {
+    ///
+    /// Return [`None`] if failed to create [`Settings`].
+    pub fn build(self) -> Option<Settings> {
         let internal = unsafe { ul_sys::ulCreateSettings() };
+
+        if internal.is_null() {
+            return None;
+        }
 
         set_config_str!(internal, self.developer_name, ulSettingsSetDeveloperName);
 
@@ -121,7 +128,7 @@ impl SettingsBuilder {
             ulSettingsSetForceCPURenderer
         );
 
-        Settings { internal }
+        Some(Settings { internal })
     }
 }
 
@@ -169,30 +176,47 @@ impl App {
     ///
     /// Leaving `settings` or `config` as `None` will use the default settings/
     /// config.
-    pub fn new(settings: Option<Settings>, config: Option<Config>) -> Self {
+    ///
+    /// Returns [`None`] if the application could not be created.
+    pub fn new(settings: Option<Settings>, config: Option<Config>) -> Result<Self, CreationError> {
         let config = match config {
             Some(config) => config,
-            None => Config::start().build(),
+            None => Config::start()
+                .build()
+                .ok_or(CreationError::NullReference)?,
         };
 
         let settings = match settings {
             Some(settings) => settings,
-            None => Settings::start().build(),
+            None => Settings::start()
+                .build()
+                .ok_or(CreationError::NullReference)?,
         };
 
         unsafe {
             let app_internal = ul_sys::ulCreateApp(settings.to_ul(), config.to_ul());
+            if app_internal.is_null() {
+                return Err(CreationError::NullReference);
+            }
 
             let monitor = Monitor {
                 internal: ul_sys::ulAppGetMainMonitor(app_internal),
             };
-            let renderer = Renderer::from_raw(ul_sys::ulAppGetRenderer(app_internal));
-
-            Self {
-                settings,
-                internal: app_internal,
-                monitor,
-                renderer,
+            if monitor.internal.is_null() {
+                ul_sys::ulDestroyApp(app_internal);
+                return Err(CreationError::NullReference);
+            }
+            let renderer_raw = ul_sys::ulAppGetRenderer(app_internal);
+            if let Ok(renderer) = Renderer::from_raw(renderer_raw) {
+                Ok(Self {
+                    settings,
+                    internal: app_internal,
+                    monitor,
+                    renderer,
+                })
+            } else {
+                ul_sys::ulDestroyApp(app_internal);
+                Err(CreationError::NullReference)
             }
         }
     }
@@ -252,13 +276,15 @@ impl App {
     /// The window will be shown by default unless [`WindowFlags::hidden`] was set.
     ///
     /// The window will be closed automatically if the object is dropped.
+    ///
+    /// Returns [`None`] if the window could not be created.
     pub fn create_window(
         &self,
         width: u32,
         height: u32,
         fullscreen: bool,
         window_flags: WindowFlags,
-    ) -> Window {
+    ) -> Option<Window> {
         unsafe {
             Window::create(
                 self.monitor.internal,

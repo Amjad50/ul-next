@@ -22,6 +22,7 @@ pub(crate) mod callback_macros;
 pub mod app;
 pub mod bitmap;
 pub mod config;
+pub mod error;
 pub mod event;
 pub mod gpu_driver;
 pub mod overlay;

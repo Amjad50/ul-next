@@ -21,6 +21,33 @@ use crate::{
 
 use super::{GpuCommand, GpuDriver, IndexBuffer, RenderBuffer, VertexBuffer, VertexBufferFormat};
 
+/// Errors can occure when calling [`create_gpu_driver`]
+#[derive(Debug, thiserror::Error)]
+pub enum GliumGpuDriverError {
+    #[error("Failed to create `glium` textures")]
+    TextureCreationError(#[from] glium::texture::TextureCreationError),
+    #[error("Failed to shader program in `glium`")]
+    ProgramCreationError(#[from] glium::program::ProgramChooserCreationError),
+    #[error("Failed to create `glium` index buffer")]
+    IndexBufferCreationError(#[from] glium::index::BufferCreationError),
+    #[error("Failed to create `glium` vertex buffer")]
+    VertexBufferCreationError(#[from] glium::vertex::BufferCreationError),
+    #[error("Failed to create `glium` buffer")]
+    BufferCreationError(#[from] glium::buffer::BufferCreationError),
+    #[error("Failed to create `glium` framebuffer")]
+    FrameBufferCreationError(#[from] glium::framebuffer::ValidationError),
+    #[error("Failed to draw")]
+    DrawError(#[from] glium::DrawError),
+    #[error(
+        "The index offset ({draw_index_offset}) and size ({draw_index_size}) used in draw is out of range from the selected index buffer (size = {index_buffer_size})"
+    )]
+    DrawIndexOutOfRange {
+        index_buffer_size: usize,
+        draw_index_offset: u32,
+        draw_index_size: u32,
+    },
+}
+
 /// Creates a GPU driver for `glium`.
 ///
 /// `glium` context must run in one thread, but the `gpu_driver` require `Send`,
@@ -42,20 +69,22 @@ use super::{GpuCommand, GpuDriver, IndexBuffer, RenderBuffer, VertexBuffer, Vert
 /// renderer.render(); // will dispatch and send all events to `reciever` from `ultralight`
 /// receiver.render(); // will render all events received from `sender`
 /// ```
-pub fn create_gpu_driver<F: ?Sized>(facade: &F) -> (GliumGpuDriverSender, GliumGpuDriverReceiver)
+pub fn create_gpu_driver<F: ?Sized>(
+    facade: &F,
+) -> Result<(GliumGpuDriverSender, GliumGpuDriverReceiver), GliumGpuDriverError>
 where
     F: Facade,
 {
     let (sender, receiver) = mpsc::channel();
-    (
+    Ok((
         GliumGpuDriverSender {
             next_texture_id: 0,
             next_render_buffer_id: 0,
             next_geometry_id: 0,
             sender,
         },
-        GliumGpuDriverReceiver::new(receiver, facade.get_context()),
-    )
+        GliumGpuDriverReceiver::new(receiver, facade.get_context())?,
+    ))
 }
 
 enum GliumGpuCommand {
@@ -77,7 +106,10 @@ enum GliumDriverVertexBuffer {
 }
 
 impl GliumDriverVertexBuffer {
-    fn into_glium_vertex_buffer<F: ?Sized>(&self, context: &F) -> VertexBufferAny
+    fn into_glium_vertex_buffer<F: ?Sized>(
+        self,
+        context: &F,
+    ) -> Result<VertexBufferAny, GliumGpuDriverError>
     where
         F: Facade,
     {
@@ -107,9 +139,10 @@ impl GliumDriverVertexBuffer {
 
                 // SAFETY: we know the structure of `ul_sys::ULVertex_2f_4ub_2f`
                 // and we know that we match it with the format description.
-                unsafe { glium::VertexBuffer::new_raw(context, &buf, format, element_size) }
-                    .unwrap()
-                    .into()
+                Ok(
+                    unsafe { glium::VertexBuffer::new_raw(context, &buf, format, element_size) }?
+                        .into(),
+                )
             }
             GliumDriverVertexBuffer::Format2f4ub2f2f28f(buf) => {
                 let format = Cow::Owned(vec![
@@ -184,9 +217,10 @@ impl GliumDriverVertexBuffer {
 
                 // SAFETY: we know the structure of `ul_sys::ULVertex_2f_4ub_2f_2f_28f`
                 // and we know that we match it with the format description.
-                unsafe { glium::VertexBuffer::new_raw(context, &buf, format, element_size) }
-                    .unwrap()
-                    .into()
+                Ok(
+                    unsafe { glium::VertexBuffer::new_raw(context, &buf, format, element_size) }?
+                        .into(),
+                )
             }
         }
     }
@@ -414,11 +448,14 @@ pub struct GliumGpuDriverReceiver {
 }
 
 impl GliumGpuDriverReceiver {
-    fn new(receiver: mpsc::Receiver<GliumGpuCommand>, context: &Rc<Context>) -> Self {
+    fn new(
+        receiver: mpsc::Receiver<GliumGpuCommand>,
+        context: &Rc<Context>,
+    ) -> Result<Self, GliumGpuDriverError> {
         let context = GluimContextWrapper {
             context: context.clone(),
         };
-        let empty_texture = Texture2d::empty(&context, 1, 1).unwrap();
+        let empty_texture = Texture2d::empty(&context, 1, 1)?;
 
         let texture_map = HashMap::new();
         let render_buffer_map = HashMap::new();
@@ -428,16 +465,14 @@ impl GliumGpuDriverReceiver {
         150 => {
             vertex: include_str!("./shaders/v2f_c4f_t2f_vert.glsl"),
             fragment: include_str!("./shaders/path_frag.glsl")
-        })
-        .unwrap();
+        })?;
         let fill_program = program!(&context,
         150 => {
             vertex: include_str!("./shaders/v2f_c4f_t2f_t2f_d28f_vert.glsl"),
             fragment: include_str!("./shaders/fill_frag.glsl")
-        })
-        .unwrap();
+        })?;
 
-        GliumGpuDriverReceiver {
+        Ok(GliumGpuDriverReceiver {
             receiver,
             context,
             empty_texture,
@@ -447,18 +482,20 @@ impl GliumGpuDriverReceiver {
 
             path_program,
             fill_program,
-        }
+        })
     }
 
     /// helper function to create a texture based on bitmap
-    fn create_texture(&self, bitmap: &OwnedBitmap) -> Texture2d {
+    fn create_texture(&self, bitmap: &OwnedBitmap) -> Result<Texture2d, GliumGpuDriverError> {
         if bitmap.is_empty() {
-            Texture2d::empty(&self.context, bitmap.width(), bitmap.height()).unwrap()
+            Texture2d::empty(&self.context, bitmap.width(), bitmap.height()).map_err(|e| e.into())
         } else {
+            // since its not empty, it should have a valid pixels.
+            let bitmap_pixels = bitmap.pixels().unwrap();
             match bitmap.format() {
                 BitmapFormat::A8Unorm => {
                     let img = RawImage2d {
-                        data: Cow::Borrowed(bitmap.pixels()),
+                        data: Cow::Borrowed(bitmap_pixels),
                         width: bitmap.width(),
                         height: bitmap.height(),
                         format: ClientFormat::U8,
@@ -470,7 +507,7 @@ impl GliumGpuDriverReceiver {
                         UncompressedFloatFormat::U8,
                         MipmapsOption::NoMipmap,
                     )
-                    .unwrap()
+                    .map_err(|e| e.into())
                 }
                 BitmapFormat::Bgra8UnormSrgb => {
                     // glium doesn't support BGRA when creating new texture,
@@ -481,11 +518,9 @@ impl GliumGpuDriverReceiver {
                         MipmapsOption::NoMipmap,
                         bitmap.width(),
                         bitmap.height(),
-                    )
-                    .unwrap();
+                    )?;
 
-                    let pixels: Vec<_> = bitmap
-                        .pixels()
+                    let pixels: Vec<_> = bitmap_pixels
                         .chunks(4)
                         .map(|c| (c[0], c[1], c[2], c[3]))
                         .collect();
@@ -493,13 +528,13 @@ impl GliumGpuDriverReceiver {
                     pixel_buffer.write(pixels.as_slice());
 
                     t.main_level().raw_upload_from_pixel_buffer_inverted(
-                        pixel_buffer.slice(..).unwrap(),
+                        pixel_buffer.as_slice(),
                         0..bitmap.width(),
                         0..bitmap.height(),
                         0..1,
                     );
 
-                    t
+                    Ok(t)
                 }
             }
         }
@@ -525,17 +560,17 @@ impl GliumGpuDriverReceiver {
     /// **Note that this must be called for rendering to actually occure, as using**
     /// **[`platform::set_gpu_driver`](crate::platform::set_gpu_driver) alone**
     /// **with [`GliumGpuDriverSender`] is not enough.**
-    pub fn render(&mut self) {
+    pub fn render(&mut self) -> Result<(), GliumGpuDriverError> {
         while let Ok(cmd) = self.receiver.try_recv() {
             match cmd {
                 GliumGpuCommand::CreateTexture(id, bitmap) => {
-                    let t = self.create_texture(&bitmap);
+                    let t = self.create_texture(&bitmap)?;
                     self.texture_map.insert(id, (t, None));
                 }
                 GliumGpuCommand::UpdateTexture(id, bitmap) => {
                     assert!(self.texture_map.contains_key(&id));
 
-                    let t = self.create_texture(&bitmap);
+                    let t = self.create_texture(&bitmap)?;
 
                     let entry = self.texture_map.get_mut(&id).unwrap();
                     entry.0 = t;
@@ -565,12 +600,11 @@ impl GliumGpuDriverReceiver {
                         &self.context,
                         glium::index::PrimitiveType::TrianglesList,
                         &index.buffer,
-                    )
-                    .unwrap();
+                    )?;
 
                     self.geometry_map.insert(
                         id,
-                        (vert.into_glium_vertex_buffer(&self.context), index_buffer),
+                        (vert.into_glium_vertex_buffer(&self.context)?, index_buffer),
                     );
                 }
                 GliumGpuCommand::UpdateGeometry(id, vert, index) => {
@@ -580,11 +614,10 @@ impl GliumGpuDriverReceiver {
                         &self.context,
                         glium::index::PrimitiveType::TrianglesList,
                         &index.buffer,
-                    )
-                    .unwrap();
+                    )?;
 
                     *self.geometry_map.get_mut(&id).unwrap() =
-                        (vert.into_glium_vertex_buffer(&self.context), index_buffer);
+                        (vert.into_glium_vertex_buffer(&self.context)?, index_buffer);
                 }
                 GliumGpuCommand::DestroyGeometry(id) => {
                     assert!(self.geometry_map.contains_key(&id));
@@ -605,8 +638,7 @@ impl GliumGpuDriverReceiver {
 
                                 let t = self.texture_map.get(&render_buffer.texture_id).unwrap();
 
-                                let mut frame_buffer =
-                                    SimpleFrameBuffer::new(&self.context, &t.0).unwrap();
+                                let mut frame_buffer = SimpleFrameBuffer::new(&self.context, &t.0)?;
 
                                 frame_buffer.clear(
                                     None,
@@ -638,11 +670,21 @@ impl GliumGpuDriverReceiver {
                                 assert!(!render_buffer.has_stencil_buffer);
                                 assert!(!render_buffer.has_depth_buffer);
 
+                                let index_buffer_slice = index_buffer
+                                    .slice(
+                                        indices_offset as usize
+                                            ..(indices_offset as usize + indices_count as usize),
+                                    )
+                                    .ok_or(GliumGpuDriverError::DrawIndexOutOfRange {
+                                        index_buffer_size: index_buffer.len(),
+                                        draw_index_offset: indices_offset,
+                                        draw_index_size: indices_count,
+                                    })?;
+
                                 let (t, _) =
                                     self.texture_map.get(&render_buffer.texture_id).unwrap();
 
-                                let mut frame_buffer =
-                                    SimpleFrameBuffer::new(&self.context, t).unwrap();
+                                let mut frame_buffer = SimpleFrameBuffer::new(&self.context, t)?;
 
                                 let used_program = match gpu_state.shader_type {
                                     ShaderType::Fill => &self.fill_program,
@@ -650,13 +692,10 @@ impl GliumGpuDriverReceiver {
                                 };
 
                                 let scalar_data =
-                                    UniformBuffer::new(&self.context, gpu_state.uniform_scalar)
-                                        .unwrap();
+                                    UniformBuffer::new(&self.context, gpu_state.uniform_scalar)?;
                                 let vector_data =
-                                    UniformBuffer::new(&self.context, gpu_state.uniform_vector)
-                                        .unwrap();
-                                let clip_data =
-                                    UniformBuffer::new(&self.context, gpu_state.clip).unwrap();
+                                    UniformBuffer::new(&self.context, gpu_state.uniform_vector)?;
+                                let clip_data = UniformBuffer::new(&self.context, gpu_state.clip)?;
 
                                 // Orthographic Projection matrix applied to
                                 // the `transformation` matrix.
@@ -747,26 +786,20 @@ impl GliumGpuDriverReceiver {
                                     ..DrawParameters::default()
                                 };
 
-                                frame_buffer
-                                    .draw(
-                                        vertex_buffer,
-                                        index_buffer
-                                            .slice(
-                                                indices_offset as usize
-                                                    ..(indices_offset as usize
-                                                        + indices_count as usize),
-                                            )
-                                            .unwrap(),
-                                        used_program,
-                                        &uniforms,
-                                        &params,
-                                    )
-                                    .unwrap();
+                                frame_buffer.draw(
+                                    vertex_buffer,
+                                    index_buffer_slice,
+                                    used_program,
+                                    &uniforms,
+                                    &params,
+                                )?;
                             }
                         }
                     }
                 }
             }
         }
+
+        Ok(())
     }
 }

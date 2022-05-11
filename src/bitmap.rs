@@ -7,6 +7,30 @@ use std::{
     slice,
 };
 
+/// Errors can occure when creating [`Bitmap`]s
+#[derive(Debug, thiserror::Error)]
+pub enum BitmapError {
+    /// The `Ultralight` library returned a null pointer.
+    #[error("Creation of bitmap failed because Ultralight returned a null pointer")]
+    NullReference,
+    /// The pixels passed to create the [`Bitmap`] does not match the required size.
+    #[error(
+        "Creation of bitmap failed because it required {required} bytes, but got {got} bytes only"
+    )]
+    PixelBufferSizeMismatch { got: usize, required: usize },
+    /// Tried to swap red and blue channels on an unsupported format.
+    #[error("Tried to swap red and blue channels on an unsupported format")]
+    UnsupportedOperationForPixelFormat,
+    /// Could not write bitmap to PNG successfully.
+    #[error("Could not write bitmap to PNG successfully")]
+    FailedPngWrite,
+    /// Could not create bitmap because its empty
+    #[error("Could not create bitmap because its empty")]
+    EmptyBitmap,
+}
+
+type BitmapResult<T> = std::result::Result<T, BitmapError>;
+
 #[derive(Debug, Clone, Copy)]
 /// The supported bitmap formats.
 pub enum BitmapFormat {
@@ -93,18 +117,28 @@ pub struct Bitmap {
 }
 
 impl Bitmap {
-    pub(crate) unsafe fn from_raw(raw: ul_sys::ULBitmap) -> Self {
-        Bitmap {
+    pub(crate) unsafe fn from_raw(raw: ul_sys::ULBitmap) -> Option<Self> {
+        if raw.is_null() {
+            return None;
+        }
+
+        Some(Bitmap {
             internal: raw,
             need_to_destroy: false,
-        }
+        })
     }
 
     /// Create an empty Bitmap. No pixels will be allocated.
-    pub fn create_empty() -> Self {
-        Self {
-            internal: unsafe { ul_sys::ulCreateEmptyBitmap() },
-            need_to_destroy: true,
+    pub fn create_empty() -> BitmapResult<Self> {
+        let internal = unsafe { ul_sys::ulCreateEmptyBitmap() };
+
+        if internal.is_null() {
+            Err(BitmapError::NullReference)
+        } else {
+            Ok(Self {
+                internal,
+                need_to_destroy: true,
+            })
         }
     }
 
@@ -115,10 +149,16 @@ impl Bitmap {
     /// * `width` - The width of the bitmap.
     /// * `height` - The height of the bitmap.
     /// * `format` - The format of the bitmap.
-    pub fn create(width: usize, height: usize, format: BitmapFormat) -> Self {
-        Self {
-            internal: unsafe { ul_sys::ulCreateBitmap(width as u32, height as u32, format as u32) },
-            need_to_destroy: true,
+    pub fn create(width: usize, height: usize, format: BitmapFormat) -> BitmapResult<Self> {
+        let internal =
+            unsafe { ul_sys::ulCreateBitmap(width as u32, height as u32, format as u32) };
+        if internal.is_null() {
+            Err(BitmapError::NullReference)
+        } else {
+            Ok(Self {
+                internal,
+                need_to_destroy: true,
+            })
         }
     }
 
@@ -136,34 +176,51 @@ impl Bitmap {
         height: u32,
         format: BitmapFormat,
         pixels: &[u8],
-    ) -> Self {
+    ) -> BitmapResult<Self> {
         let row_bytes = width * format.bytes_per_pixel();
-        assert!(pixels.len() == (row_bytes * height) as usize);
-        Self {
-            // This will create a new buffer and copy the pixels into it
-            // NOTE: the constructor allow for row size that is more than the actual row size
-            //       which means that it can support padding, we don't need it for now
-            //       but if needed, we can implement it.
-            internal: unsafe {
-                ul_sys::ulCreateBitmapFromPixels(
-                    width,
-                    height,
-                    format as u32,
-                    row_bytes,
-                    pixels.as_ptr() as *const c_void,
-                    pixels.len() as u64,
-                    true,
-                )
-            },
-            need_to_destroy: true,
+        let bytes_size = (height * row_bytes) as usize;
+        if pixels.len() != bytes_size {
+            return Err(BitmapError::PixelBufferSizeMismatch {
+                got: pixels.len(),
+                required: bytes_size,
+            });
+        }
+        // This will create a new buffer and copy the pixels into it
+        // NOTE: the constructor allow for row size that is more than the actual row size
+        //       which means that it can support padding, we don't need it for now
+        //       but if needed, we can implement it.
+        let internal = unsafe {
+            ul_sys::ulCreateBitmapFromPixels(
+                width,
+                height,
+                format as u32,
+                row_bytes,
+                pixels.as_ptr() as *const c_void,
+                pixels.len() as u64,
+                true,
+            )
+        };
+        if internal.is_null() {
+            Err(BitmapError::NullReference)
+        } else {
+            Ok(Self {
+                internal,
+                need_to_destroy: true,
+            })
         }
     }
 
     /// Create a bitmap from a deep copy of another Bitmap.
-    pub fn copy(&self) -> Self {
-        Self {
-            internal: unsafe { ul_sys::ulCreateBitmapFromCopy(self.internal) },
-            need_to_destroy: true,
+    pub fn copy(&self) -> BitmapResult<Self> {
+        let internal = unsafe { ul_sys::ulCreateBitmapFromCopy(self.internal) };
+
+        if internal.is_null() {
+            Err(BitmapError::NullReference)
+        } else {
+            Ok(Self {
+                internal,
+                need_to_destroy: true,
+            })
         }
     }
 }
@@ -209,7 +266,7 @@ impl Bitmap {
     /// Lock the pixel buffer for reading/writing.
     ///
     /// An RAII guard is returned that will unlock the buffer when dropped.
-    pub fn lock_pixels(&mut self) -> PixelsGuard {
+    pub fn lock_pixels(&mut self) -> Option<PixelsGuard> {
         let (raw_pixels, size) = unsafe {
             ul_sys::ulBitmapLockPixels(self.internal);
             (
@@ -218,9 +275,13 @@ impl Bitmap {
             )
         };
 
+        if raw_pixels.is_null() {
+            return None;
+        }
+
         unsafe {
             let data = slice::from_raw_parts_mut(raw_pixels as _, size as usize);
-            PixelsGuard::new(self, data)
+            Some(PixelsGuard::new(self, data))
         }
     }
 
@@ -240,25 +301,25 @@ impl Bitmap {
     }
 
     /// Write bitmap to a PNG on disk.
-    pub fn write_to_png<P: AsRef<Path>>(&self, path: P) -> Result<(), ()> {
+    pub fn write_to_png<P: AsRef<Path>>(&self, path: P) -> BitmapResult<()> {
         let c_path = CString::new(path.as_ref().to_str().unwrap()).unwrap();
         let result = unsafe { ul_sys::ulBitmapWritePNG(self.internal, c_path.as_ptr()) };
         if result {
             Ok(())
         } else {
-            Err(())
+            Err(BitmapError::FailedPngWrite)
         }
     }
 
     /// This converts a BGRA bitmap to RGBA bitmap and vice-versa by swapping the red and blue channels.
     ///
     /// Only valid if the format is BitmapFormat::BGRA8_UNORM_SRGB
-    pub fn swap_red_blue_channels(&self) -> Result<(), ()> {
+    pub fn swap_red_blue_channels(&self) -> BitmapResult<()> {
         if let BitmapFormat::Bgra8UnormSrgb = self.format() {
             unsafe { ul_sys::ulBitmapSwapRedBlueChannels(self.internal) }
             Ok(())
         } else {
-            Err(())
+            Err(BitmapError::UnsupportedOperationForPixelFormat)
         }
     }
 }
@@ -284,7 +345,7 @@ pub struct OwnedBitmap {
     bpp: u32,
     row_bytes: u32,
     bytes_size: u64,
-    pixels: Vec<u8>,
+    pixels: Option<Vec<u8>>,
     is_empty: bool,
 }
 
@@ -292,7 +353,7 @@ impl OwnedBitmap {
     /// Create an [`OwnedBitmap`] from a [`Bitmap`].
     ///
     /// This will result in copying all the pixels from the original bitmap.
-    pub fn from_bitmap(bitmap: &mut Bitmap) -> Self {
+    pub fn from_bitmap(bitmap: &mut Bitmap) -> Option<Self> {
         let width = bitmap.width();
         let height = bitmap.height();
         let format = bitmap.format();
@@ -301,9 +362,9 @@ impl OwnedBitmap {
         let bytes_size = bitmap.bytes_size();
         let is_empty = bitmap.is_empty();
 
-        let pixels = bitmap.lock_pixels().to_vec();
+        let pixels = bitmap.lock_pixels().map(|v| v.to_vec());
 
-        Self {
+        Some(Self {
             width,
             height,
             format,
@@ -312,7 +373,7 @@ impl OwnedBitmap {
             bytes_size,
             pixels,
             is_empty,
-        }
+        })
     }
 
     /// Create a [`Bitmap`] from an [`OwnedBitmap`].
@@ -320,8 +381,12 @@ impl OwnedBitmap {
     /// This is useful when we need to call `Ultralight` logic that require [`Bitmap`].
     ///
     /// This function will copy all the pixels from the owned bitmap.
-    pub fn to_bitmap(&self) -> Bitmap {
-        Bitmap::create_from_pixels(self.width, self.height, self.format, &self.pixels)
+    pub fn to_bitmap(&self) -> BitmapResult<Bitmap> {
+        if let Some(pixels) = self.pixels.as_ref() {
+            Bitmap::create_from_pixels(self.width, self.height, self.format, pixels.as_slice())
+        } else {
+            Err(BitmapError::EmptyBitmap)
+        }
     }
 
     /// Get the width in pixels.
@@ -355,13 +420,13 @@ impl OwnedBitmap {
     }
 
     /// Get the pixel buffer slice.
-    pub fn pixels(&self) -> &[u8] {
-        &self.pixels
+    pub fn pixels(&self) -> Option<&[u8]> {
+        self.pixels.as_deref()
     }
 
     /// Get the mutable pixel buffer slice.
-    pub fn pixels_mut(&mut self) -> &mut [u8] {
-        &mut self.pixels
+    pub fn pixels_mut(&mut self) -> Option<&mut [u8]> {
+        self.pixels.as_deref_mut()
     }
 
     /// Whether or not this bitmap is empty (no pixels allocated).

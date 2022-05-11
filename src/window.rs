@@ -160,13 +160,15 @@ pub struct Window {
 impl Window {
     /// Internal function helper to create a view.
     /// (See [`App::create_window`](crate::app::App::create_window))
+    ///
+    /// Returns [`None`] if failed to create the window.
     pub(crate) unsafe fn create(
         monitor_raw: ul_sys::ULMonitor,
         width: u32,
         height: u32,
         fullscreen: bool,
         window_flags: WindowFlags,
-    ) -> Self {
+    ) -> Option<Self> {
         let internal = ul_sys::ulCreateWindow(
             monitor_raw,
             width,
@@ -175,18 +177,26 @@ impl Window {
             window_flags.to_u32(),
         );
 
-        Self {
-            internal,
-            need_to_destroy: true,
+        if internal.is_null() {
+            None
+        } else {
+            Some(Self {
+                internal,
+                need_to_destroy: true,
+            })
         }
     }
 
     /// Helper internal function to allow getting a reference to a managed
     /// session.
-    pub(crate) unsafe fn from_raw(raw: ul_sys::ULWindow) -> Self {
-        Self {
-            internal: raw,
-            need_to_destroy: false,
+    pub(crate) unsafe fn from_raw(raw: ul_sys::ULWindow) -> Option<Self> {
+        if raw.is_null() {
+            None
+        } else {
+            Some(Self {
+                internal: raw,
+                need_to_destroy: false,
+            })
         }
     }
 
@@ -291,7 +301,7 @@ impl Window {
         /// * `window: &Window` - The window that fired the event (eg. self)
         pub fn set_close_callback(&self, callback: FnMut(window: &Window)) :
            ulWindowSetCloseCallback(ul_window: ul_sys::ULWindow) {
-               let window = &Window::from_raw(ul_window);
+               let window = &Window::from_raw(ul_window).unwrap();
         }
     }
 
@@ -304,7 +314,7 @@ impl Window {
         /// * `height: u32` - The new height of the window (in pixels)
         pub fn set_resize_callback(&self, callback: FnMut(window: &Window, width: u32, height: u32)) :
             ulWindowSetResizeCallback(ul_window: ul_sys::ULWindow, width: u32, height: u32) {
-               let window = &Window::from_raw(ul_window);
+               let window = &Window::from_raw(ul_window).unwrap();
         }
     }
 
@@ -326,7 +336,9 @@ impl Window {
     /// * `height` - The height in pixels.
     /// * `x` - The x-position (offset from the left of this Window), in pixels.
     /// * `y` - The y-position (offset from the top of this Window), in pixels.
-    pub fn create_overlay(&self, width: u32, height: u32, x: i32, y: i32) -> Overlay {
+    ///
+    /// Returns [`None`] if failed to create [`Overlay`].
+    pub fn create_overlay(&self, width: u32, height: u32, x: i32, y: i32) -> Option<Overlay> {
         unsafe { Overlay::create(self.internal, width, height, x, y) }
     }
 
@@ -336,7 +348,9 @@ impl Window {
     /// * `view` - The view to wrap (will use its width and height).
     /// * `x` - The x-position (offset from the left of this Window), in pixels.
     /// * `y` - The y-position (offset from the top of this Window), in pixels.
-    pub fn create_overlay_with_view(&self, view: View, x: i32, y: i32) -> Overlay {
+    ///
+    /// Returns [`None`] if failed to create [`Overlay`].
+    pub fn create_overlay_with_view(&self, view: View, x: i32, y: i32) -> Option<Overlay> {
         unsafe { Overlay::create_with_view(self.internal, view, x, y) }
     }
 }
