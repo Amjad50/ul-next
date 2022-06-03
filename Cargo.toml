@@ -6,6 +6,9 @@ edition = "2021"
 
 [features]
 default = []
+# link only Ultralight unique libraries, and not other dependancies that
+# may be available in the host system (such as libglib and libgio)
+only-ul-deps = ["ul-sys/only-ul-deps"]
 
 
 [dependencies]
