@@ -16,6 +16,7 @@ use crate::{
 lazy_static::lazy_static! {
     static ref LOGGER: Mutex<Option<Box<dyn Logger + Send>>> = Mutex::new(None);
     static ref CLIPBOARD: Mutex<Option<Box<dyn Clipboard + Send>>> = Mutex::new(None);
+    static ref FILESYSTEM: Mutex<Option<Box<dyn FileSystem + Send>>> = Mutex::new(None);
     pub(crate) static ref GPUDRIVER: Mutex<Option<Box<dyn GpuDriver + Send>>> = Mutex::new(None);
 }
 
@@ -77,6 +78,50 @@ pub trait Clipboard {
     fn write_plain_text(&mut self, text: &str);
 }
 
+/// This is used for loading File URLs (eg, <file:///page.html>).
+///
+/// You can provide the library with your own FileSystem implementation so that file assets are
+/// loaded from your own pipeline (useful if you would like to encrypt/compress your file assets or
+/// ship it in a custom format).
+///
+/// AppCore automatically provides a platform-specific implementation of this that loads files from
+/// a local directory when you call [`App::new`]
+///
+/// If you are using [`Renderer::create`] instead, you will need to provide your own implementation
+/// via [`platform::set_filesystem`].
+///
+/// To provide your own custom FileSystem implementation, you should implement
+/// this trait, and then pass an instance of your struct to
+/// [`platform::set_filesystem`] before calling [`Renderer::create`] or [`App::new`].
+///
+/// [`App::new`]: crate::app::App::new
+/// [`Renderer::create`]: crate::renderer::Renderer::create
+/// [`platform::set_filesystem`]: set_filesystem
+pub trait FileSystem {
+    /// Check if file path exists, return true if exists.
+    fn file_exists(&mut self, path: &str) -> bool;
+
+    /// Get the mime-type of the file (eg "text/html").
+    ///
+    /// This is usually determined by analyzing the file extension.
+    ///
+    /// If a mime-type cannot be determined, this should return "application/unknown".
+    fn get_file_mime_type(&mut self, path: &str) -> String;
+
+    /// Get the charset / encoding of the file (eg "utf-8", "iso-8859-1").
+    ///
+    /// This is only applicable for text-based files (eg, "text/html", "text/plain")
+    /// and is usually determined by analyzing the contents of the file.
+    ///
+    /// If a charset cannot be determined, a safe default to return is "utf-8".
+    fn get_file_charset(&mut self, path: &str) -> String;
+
+    /// Open file for reading and map it to a Buffer.
+    ///
+    /// If the file was unable to be opened, you should return `None`.
+    fn open_file(&mut self, path: &str) -> Option<Vec<u8>>;
+}
+
 platform_set_interface_macro! {
     /// Set a custom Logger implementation.
     ///
@@ -128,6 +173,55 @@ platform_set_interface_macro! {
         write_plain_text((ul_text: ul_sys::ULString)) -> ((text: &String)) {
             let text = UlString::copy_raw_to_string(ul_text).unwrap();
             let text = &text;
+        }
+    }
+}
+
+platform_set_interface_macro! {
+    /// Set a custom FileSystem implementation.
+    ///
+    /// This is used for loading File URLs (eg, <file:///page.html>). If
+    /// you don't call this, and are not using [`App::new`] or
+    /// [`enable_platform_filesystem`], you will not be able to load any File
+    /// URLs.
+    ///
+    /// You should call this before [`Renderer::create`] or [`App::new`].
+    ///
+    /// [`App::new`] will use the default platform file system if you never call this.
+    ///
+    /// If you're not using [`App::new`], (eg, using [`Renderer::create`]) you
+    /// can still use the default platform file system by calling
+    /// [`platform::enable_platform_filesystem`](enable_platform_filesystem).
+    ///
+    /// [`App::new`]: crate::app::App::new
+    /// [`Renderer::create`]: crate::renderer::Renderer::create
+    pub set_filesystem<FileSystem>(filesystem -> FILESYSTEM) -> ulPlatformSetFileSystem(ULFileSystem) {
+        // TODO: handle errors
+        file_exists((ul_path: ul_sys::ULString) -> bool) -> ((path: &str)) {
+            let path = UlString::copy_raw_to_string(ul_path).unwrap();
+            let path = &path;
+        }
+        get_file_mime_type((ul_path: ul_sys::ULString) -> ul_sys::ULString) -> ((path: &str) -> result: String) {
+            let path = UlString::copy_raw_to_string(ul_path).unwrap();
+            let path = &path;
+        } {
+            UlString::from_str_unmanaged(&result).unwrap()
+        }
+        get_file_charset((ul_path: ul_sys::ULString) -> ul_sys::ULString) -> ((path: &str) -> result: String) {
+            let path = UlString::copy_raw_to_string(ul_path).unwrap();
+            let path = &path;
+        } {
+            UlString::from_str_unmanaged(&result).unwrap()
+        }
+        open_file((ul_path: ul_sys::ULString) -> ul_sys::ULBuffer) -> ((path: &str) -> result: Option<Vec<u8>>) {
+            let path = UlString::copy_raw_to_string(ul_path).unwrap();
+            let path = &path;
+        } {
+            if let Some(result) = result {
+                ul_sys::ulCreateBufferFromCopy(result.as_ptr() as _, result.len() as u64)
+            } else{
+                std::ptr::null_mut()
+            }
         }
     }
 }
