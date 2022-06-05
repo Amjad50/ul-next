@@ -20,7 +20,7 @@ use rust_ul_next::{app::App, platform, window::WindowFlags};
 fn main() {
     // set the origin file system, require `resources` folder, which can be
     // obtained from `Ultralight sdk`
-    platform::enable_platform_file_system(".").unwrap();
+    platform::enable_platform_filesystem(".").unwrap();
 
     // use default settings and configs
     let app = App::new(None, None).unwrap();

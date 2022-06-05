@@ -163,7 +163,7 @@ impl Renderer {
     /// [`platform::set_gpu_driver`](crate::platform::set_gpu_driver),
     /// [`platform::set_logger`](crate::platform::set_logger),
     /// [`platform::enable_default_logger`](crate::platform::enable_default_logger),
-    /// [`platform::enable_platform_file_system`](crate::platform::enable_platform_file_system),
+    /// [`platform::enable_platform_filesystem`](crate::platform::enable_platform_filesystem),
     /// etc.) before calling this.
     ///
     /// You will also need to define a font loader before calling this --

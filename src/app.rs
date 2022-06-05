@@ -44,7 +44,7 @@ impl Drop for Settings {
 pub struct SettingsBuilder {
     developer_name: Option<String>,
     app_name: Option<String>,
-    file_system_path: Option<String>,
+    filesystem_path: Option<String>,
     load_shaders_from_filesystem: Option<bool>,
     force_cpu_renderer: Option<bool>,
 }
@@ -77,13 +77,13 @@ impl SettingsBuilder {
     ///     - Windows: relative to the executable path
     ///     - Linux:   relative to the executable path
     ///     - macOS:   relative to `YourApp.app/Contents/Resources/`
-    pub fn file_system_path(mut self, file_system_path: &str) -> Self {
-        self.file_system_path = Some(file_system_path.to_string());
+    pub fn filesystem_path(mut self, filesystem_path: &str) -> Self {
+        self.filesystem_path = Some(filesystem_path.to_string());
         self
     }
 
     /// Whether or not we should load and compile shaders from the file system
-    /// (eg, from the /shaders/ path, relative to [`file_system_path`](Self::file_system_path)).
+    /// (eg, from the /shaders/ path, relative to [`filesystem_path`](Self::filesystem_path)).
     ///
     /// If this is false (the default), we will instead load pre-compiled shaders
     /// from memory which speeds up application startup time.
@@ -114,7 +114,7 @@ impl SettingsBuilder {
 
         set_config_str!(internal, self.app_name, ulSettingsSetAppName);
 
-        set_config_str!(internal, self.file_system_path, ulSettingsSetFileSystemPath);
+        set_config_str!(internal, self.filesystem_path, ulSettingsSetFileSystemPath);
 
         set_config!(
             internal,

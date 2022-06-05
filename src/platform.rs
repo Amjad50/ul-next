@@ -175,7 +175,7 @@ pub fn enable_platform_fontloader() {
 /// This is only needed if you are not calling [`App::new`](crate::app::App::new)
 ///
 /// You can specify a base directory path to resolve relative paths against
-pub fn enable_platform_file_system<P: AsRef<Path>>(base_dir: P) -> Result<(), CreationError> {
+pub fn enable_platform_filesystem<P: AsRef<Path>>(base_dir: P) -> Result<(), CreationError> {
     unsafe {
         // TODO: handle error
         let base_dir = UlString::from_str(base_dir.as_ref().to_str().unwrap())?;

@@ -43,9 +43,9 @@ fn main() {
     // The Platform API handlers we can set are:
     //
     //  - platform::set_logger          (empty, optional, supported)
-    //  - jlatform::set_gpu_driver      (empty, optional, not supported)
+    //  - platform::set_gpu_driver      (empty, optional, not supported)
     //  - platform::set_font_loader     (empty, **required**, not supported)
-    //  - platform::set_file_system     (empty, optional, not supported)
+    //  - platform::set_filesystem     (empty, optional, not supported)
     //  - platform::set_clipboard       (empty, optional, supported)
     //  - platform::set_surface_factory (defaults to BitmapSurfaceFactory, **required**, not supported)
     //
@@ -53,11 +53,11 @@ fn main() {
     // we can't use a custom font loader yet, but we can use the default one.
     platform::enable_platform_fontloader();
 
-    // use the default file_system and we specify the root path, which
+    // use the default filesystem and we specify the root path, which
     // all `file:///` URLs will be resolved against.
     //
-    // NOTE: custom file_system is still not supported in this library
-    platform::enable_platform_file_system(".").unwrap();
+    // NOTE: custom filesystem is still not supported in this library
+    platform::enable_platform_filesystem(".").unwrap();
 
     // Register a logger that logs messages to the console.
     //
