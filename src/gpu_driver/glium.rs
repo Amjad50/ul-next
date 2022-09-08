@@ -5,9 +5,8 @@ use std::{borrow::Cow, collections::HashMap, rc::Rc, sync::mpsc};
 use glium::{
     backend::{Context, Facade},
     framebuffer::SimpleFrameBuffer,
-    pixel_buffer::PixelBuffer,
     program,
-    texture::{ClientFormat, MipmapsOption, RawImage2d, UncompressedFloatFormat},
+    texture::{ClientFormat, MipmapsOption, RawImage2d, SrgbTexture2d, UncompressedFloatFormat},
     uniform,
     uniforms::UniformBuffer,
     vertex::VertexBufferAny,
@@ -20,6 +19,9 @@ use crate::{
 };
 
 use super::{GpuCommand, GpuDriver, IndexBuffer, RenderBuffer, VertexBuffer, VertexBufferFormat};
+pub use either_texture::{EitherSampler, EitherTexture};
+
+mod either_texture;
 
 /// Errors can occure when calling [`create_gpu_driver`]
 #[derive(Debug, thiserror::Error)]
@@ -432,9 +434,9 @@ pub struct GliumGpuDriverReceiver {
 
     /// create a small texture, which will be used when
     /// the gpu driver doesn't set a texture for a draw call
-    empty_texture: Texture2d,
+    empty_texture: EitherTexture,
     /// map for (id -> texture), and storing the `render_buffer` id if applicable.
-    texture_map: HashMap<u32, (Texture2d, Option<u32>)>,
+    texture_map: HashMap<u32, (EitherTexture, Option<u32>)>,
     /// map for (id -> render_buffer metadata), the render_buffer itself is a texture
     /// stored in the `texture_map`, we only create a framebuffer when drawing.
     render_buffer_map: HashMap<u32, RenderBuffer>,
@@ -455,7 +457,7 @@ impl GliumGpuDriverReceiver {
         let context = GluimContextWrapper {
             context: context.clone(),
         };
-        let empty_texture = Texture2d::empty(&context, 1, 1)?;
+        let empty_texture = EitherTexture::Regular2d(Texture2d::empty(&context, 1, 1)?);
 
         let texture_map = HashMap::new();
         let render_buffer_map = HashMap::new();
@@ -486,9 +488,11 @@ impl GliumGpuDriverReceiver {
     }
 
     /// helper function to create a texture based on bitmap
-    fn create_texture(&self, bitmap: &OwnedBitmap) -> Result<Texture2d, GliumGpuDriverError> {
+    fn create_texture(&self, bitmap: &OwnedBitmap) -> Result<EitherTexture, GliumGpuDriverError> {
         if bitmap.is_empty() {
-            Texture2d::empty(&self.context, bitmap.width(), bitmap.height()).map_err(|e| e.into())
+            Texture2d::empty(&self.context, bitmap.width(), bitmap.height())
+                .map_err(|e| e.into())
+                .map(|t| EitherTexture::Regular2d(t))
         } else {
             // since its not empty, it should have a valid pixels.
             let bitmap_pixels = bitmap.pixels().unwrap();
@@ -508,33 +512,24 @@ impl GliumGpuDriverReceiver {
                         MipmapsOption::NoMipmap,
                     )
                     .map_err(|e| e.into())
+                    .map(|t| EitherTexture::Regular2d(t))
                 }
                 BitmapFormat::Bgra8UnormSrgb => {
-                    // glium doesn't support BGRA when creating new texture,
-                    // so we have to upload manually
-                    let t = Texture2d::empty_with_format(
+                    let img = RawImage2d {
+                        data: Cow::Borrowed(bitmap_pixels),
+                        width: bitmap.width(),
+                        height: bitmap.height(),
+                        format: ClientFormat::U8U8U8U8,
+                    };
+
+                    SrgbTexture2d::with_format(
                         &self.context,
-                        UncompressedFloatFormat::U8U8U8U8,
+                        img,
+                        glium::texture::SrgbFormat::U8U8U8U8,
                         MipmapsOption::NoMipmap,
-                        bitmap.width(),
-                        bitmap.height(),
-                    )?;
-
-                    let pixels: Vec<_> = bitmap_pixels
-                        .chunks(4)
-                        .map(|c| (c[0], c[1], c[2], c[3]))
-                        .collect();
-                    let pixel_buffer = PixelBuffer::new_empty(&self.context, pixels.len());
-                    pixel_buffer.write(pixels.as_slice());
-
-                    t.main_level().raw_upload_from_pixel_buffer_inverted(
-                        pixel_buffer.as_slice(),
-                        0..bitmap.width(),
-                        0..bitmap.height(),
-                        0..1,
-                    );
-
-                    Ok(t)
+                    )
+                    .map_err(|e| e.into())
+                    .map(|t| EitherTexture::Srgb2d(t))
                 }
             }
         }
@@ -550,7 +545,7 @@ impl GliumGpuDriverReceiver {
     /// let render_target = view.render_target().unwrap();
     /// let texture = receiver.get_texture(&render_target.texture_id);
     /// ```
-    pub fn get_texture(&self, id: &u32) -> Option<&Texture2d> {
+    pub fn get_texture(&self, id: &u32) -> Option<&EitherTexture> {
         self.texture_map.get(id).map(|(t, _)| t)
     }
 
