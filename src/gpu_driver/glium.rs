@@ -767,7 +767,7 @@ impl GliumGpuDriverReceiver {
                                     scissor: if gpu_state.enable_scissor {
                                         Some(glium::Rect {
                                             left: gpu_state.scissor_rect.left as u32,
-                                            bottom: gpu_state.scissor_rect.bottom as u32,
+                                            bottom: gpu_state.scissor_rect.top as u32,
                                             width: (gpu_state.scissor_rect.right
                                                 - gpu_state.scissor_rect.left)
                                                 as u32,
