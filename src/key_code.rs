@@ -172,9 +172,9 @@ pub enum VirtualKeyCode {
     Unknown,
 }
 
-impl Into<i32> for VirtualKeyCode {
-    fn into(self) -> i32 {
-        match self {
+impl From<VirtualKeyCode> for i32 {
+    fn from(val: VirtualKeyCode) -> Self {
+        match val {
             VirtualKeyCode::Back => 0x08,
             VirtualKeyCode::Tab => 0x09,
             VirtualKeyCode::Clear => 0x0C,

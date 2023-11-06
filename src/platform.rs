@@ -218,7 +218,7 @@ platform_set_interface_macro! {
             let path = &path;
         } {
             if let Some(result) = result {
-                ul_sys::ulCreateBufferFromCopy(result.as_ptr() as _, result.len() as u64)
+                ul_sys::ulCreateBufferFromCopy(result.as_ptr() as _, result.len())
             } else{
                 std::ptr::null_mut()
             }

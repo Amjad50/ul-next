@@ -151,7 +151,7 @@ fn main() {
     {
         let path = Path::new(r"./result.png");
         let file = File::create(path).unwrap();
-        let ref mut w = BufWriter::new(file);
+        let w = BufWriter::new(file);
 
         let mut encoder = png::Encoder::new(w, width, height);
         encoder.set_color(png::ColorType::Rgba);

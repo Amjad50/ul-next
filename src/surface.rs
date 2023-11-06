@@ -31,7 +31,7 @@ impl Deref for PixelsGuard<'_> {
 
 impl DerefMut for PixelsGuard<'_> {
     fn deref_mut(&mut self) -> &mut [u8] {
-        &mut self.pixels
+        self.pixels
     }
 }
 
@@ -95,7 +95,7 @@ impl Surface {
     /// Get the size in bytes of the pixel buffer.
     ///
     /// bytes_size is calculated as `row_bytes() * height()`.
-    pub fn bytes_size(&self) -> u64 {
+    pub fn bytes_size(&self) -> usize {
         unsafe { ul_sys::ulSurfaceGetSize(self.internal) }
     }
 
@@ -111,7 +111,7 @@ impl Surface {
             return None;
         }
 
-        let size = self.bytes_size() as usize;
+        let size = self.bytes_size();
         unsafe {
             let data = std::slice::from_raw_parts_mut(raw_locked_pixels as _, size);
             Some(PixelsGuard::new(self, data))

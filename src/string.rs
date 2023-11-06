@@ -19,7 +19,7 @@ impl UlString {
     /// This will be sent to `Ultralight` library and it will handle its memory.
     pub(crate) unsafe fn from_str_unmanaged(s: &str) -> Result<ul_sys::ULString, CreationError> {
         let internal =
-            ul_sys::ulCreateStringUTF8(s.as_bytes().as_ptr() as *const i8, s.len() as u64);
+            ul_sys::ulCreateStringUTF8(s.as_bytes().as_ptr() as *const i8, s.len());
         if internal.is_null() {
             Err(CreationError::UlStringCreationError(s.to_string()))
         } else {
@@ -48,7 +48,7 @@ impl UlString {
         if raw_data.is_null() {
             return Err(CreationError::NullReference);
         }
-        let utf8_data = slice::from_raw_parts(raw_data, ul_sys::ulStringGetLength(raw) as usize)
+        let utf8_data = slice::from_raw_parts(raw_data, ul_sys::ulStringGetLength(raw))
             .iter()
             .map(|c| *c as u8)
             .collect();

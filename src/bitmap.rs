@@ -98,7 +98,7 @@ impl Deref for PixelsGuard<'_> {
 
 impl DerefMut for PixelsGuard<'_> {
     fn deref_mut(&mut self) -> &mut [u8] {
-        &mut self.pixels
+        self.pixels
     }
 }
 
@@ -196,7 +196,7 @@ impl Bitmap {
                 format as u32,
                 row_bytes,
                 pixels.as_ptr() as *const c_void,
-                pixels.len() as u64,
+                pixels.len(),
                 true,
             )
         };
@@ -259,7 +259,7 @@ impl Bitmap {
     /// Get the size in bytes of the pixel buffer.
     ///
     /// bytes_size is calculated as `row_bytes() * height()`.
-    pub fn bytes_size(&self) -> u64 {
+    pub fn bytes_size(&self) -> usize {
         unsafe { ul_sys::ulBitmapGetSize(self.internal) }
     }
 
@@ -280,7 +280,7 @@ impl Bitmap {
         }
 
         unsafe {
-            let data = slice::from_raw_parts_mut(raw_pixels as _, size as usize);
+            let data = slice::from_raw_parts_mut(raw_pixels as _, size);
             Some(PixelsGuard::new(self, data))
         }
     }
@@ -344,7 +344,7 @@ pub struct OwnedBitmap {
     format: BitmapFormat,
     bpp: u32,
     row_bytes: u32,
-    bytes_size: u64,
+    bytes_size: usize,
     pixels: Option<Vec<u8>>,
     is_empty: bool,
 }
@@ -415,7 +415,7 @@ impl OwnedBitmap {
     }
 
     /// Get the size in bytes of the pixel buffer.
-    pub fn bytes_size(&self) -> u64 {
+    pub fn bytes_size(&self) -> usize {
         self.bytes_size
     }
 
