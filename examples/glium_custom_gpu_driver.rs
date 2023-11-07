@@ -1,17 +1,16 @@
-use glium::glutin::dpi::PhysicalSize;
-use glium::{glutin, implement_vertex};
-use glium::{
-    glutin::{event_loop::EventLoop, window::WindowBuilder, ContextBuilder},
-    uniform, Display, Surface,
-};
+use glium::implement_vertex;
+use glium::{uniform, Surface};
 use glium::{index::PrimitiveType, program::ProgramCreationInput, Program};
 use rust_ul_next::{config::Config, platform, renderer::Renderer, view::ViewConfig};
 
 fn main() {
-    let event_loop = EventLoop::new();
-    let wb = WindowBuilder::new().with_inner_size(PhysicalSize::new(900, 600));
-    let cb = ContextBuilder::new().with_srgb(false);
-    let display = Display::new(wb, cb, &event_loop).unwrap();
+    let event_loop = winit::event_loop::EventLoopBuilder::new()
+        .build();
+
+    let (_window, display) = glium::backend::glutin::SimpleWindowBuilder::new()
+        .with_title("Glium tutorial #5")
+        .with_inner_size(900, 600)
+        .build(&event_loop);
 
     let config = Config::start().build().unwrap();
 
@@ -75,7 +74,7 @@ fn main() {
 
     // building the index buffer
     let index_buffer =
-        glium::IndexBuffer::new(&display, PrimitiveType::TriangleStrip, &[1 as u16, 2, 0, 3])
+        glium::IndexBuffer::new(&display, PrimitiveType::TriangleStrip, &[1u16, 2, 0, 3])
             .unwrap();
 
     let program = Program::new(
@@ -157,20 +156,20 @@ fn main() {
     update_and_draw(None);
     event_loop.run(move |event, _, control_flow| {
         *control_flow = match event {
-            glutin::event::Event::WindowEvent { event, .. } => match event {
+            winit::event::Event::WindowEvent { event, .. } => match event {
                 // Break from the main loop when the window is closed.
-                glutin::event::WindowEvent::CloseRequested => glutin::event_loop::ControlFlow::Exit,
+                winit::event::WindowEvent::CloseRequested => winit::event_loop::ControlFlow::Exit,
                 // Redraw the triangle when the window is resized.
-                glutin::event::WindowEvent::Resized(size) => {
+                winit::event::WindowEvent::Resized(size) => {
                     update_and_draw(Some((size.width, size.height)));
 
-                    glutin::event_loop::ControlFlow::Poll
+                    winit::event_loop::ControlFlow::Poll
                 }
-                _ => glutin::event_loop::ControlFlow::Poll,
+                _ => winit::event_loop::ControlFlow::Poll,
             },
             _ => {
                 update_and_draw(None);
-                glutin::event_loop::ControlFlow::Poll
+                winit::event_loop::ControlFlow::Poll
             }
         };
     });

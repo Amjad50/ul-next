@@ -9,7 +9,7 @@ use glium::{
     texture::{ClientFormat, MipmapsOption, RawImage2d, SrgbTexture2d, UncompressedFloatFormat},
     uniform,
     uniforms::UniformBuffer,
-    vertex::VertexBufferAny,
+    vertex::{AttributeType, VertexBufferAny},
     Blend, DrawParameters, Program, Surface, Texture2d,
 };
 
@@ -22,6 +22,115 @@ use super::{GpuCommand, GpuDriver, IndexBuffer, RenderBuffer, VertexBuffer, Vert
 pub use either_texture::{EitherSampler, EitherTexture};
 
 mod either_texture;
+
+type StaticVertexFormatBinding = Cow<'static, [(Cow<'static, str>, usize, i32, AttributeType, bool)]>;
+
+lazy_static::lazy_static! {
+    static ref BINDING_2F4UB2F2F28F: StaticVertexFormatBinding = Cow::Owned(vec![
+        (
+            Cow::Borrowed("in_Position"),
+            0,
+            -1,
+            glium::vertex::AttributeType::F32F32,
+            false,
+        ),
+        (
+            Cow::Borrowed("in_Color"),
+            2 * ::std::mem::size_of::<f32>(),
+            -1,
+            glium::vertex::AttributeType::U8U8U8U8,
+            true,
+        ),
+        (
+            Cow::Borrowed("in_TexCoord"),
+            2 * ::std::mem::size_of::<f32>() + 4 * ::std::mem::size_of::<u8>(),
+            -1,
+            glium::vertex::AttributeType::F32F32,
+            false,
+        ),
+        (
+            Cow::Borrowed("in_ObjCoord"),
+            4 * ::std::mem::size_of::<f32>() + 4 * ::std::mem::size_of::<u8>(),
+            -1,
+            glium::vertex::AttributeType::F32F32,
+            false,
+        ),
+        (
+            Cow::Borrowed("in_Data0"),
+            6 * ::std::mem::size_of::<f32>() + 4 * ::std::mem::size_of::<u8>(),
+            -1,
+            glium::vertex::AttributeType::F32F32F32F32,
+            false,
+        ),
+        (
+            Cow::Borrowed("in_Data1"),
+            10 * ::std::mem::size_of::<f32>() + 4 * ::std::mem::size_of::<u8>(),
+            -1,
+            glium::vertex::AttributeType::F32F32F32F32,
+            false,
+        ),
+        (
+            Cow::Borrowed("in_Data2"),
+            14 * ::std::mem::size_of::<f32>() + 4 * ::std::mem::size_of::<u8>(),
+            -1,
+            glium::vertex::AttributeType::F32F32F32F32,
+            false,
+        ),
+        (
+            Cow::Borrowed("in_Data3"),
+            18 * ::std::mem::size_of::<f32>() + 4 * ::std::mem::size_of::<u8>(),
+            -1,
+            glium::vertex::AttributeType::F32F32F32F32,
+            false,
+        ),
+        (
+            Cow::Borrowed("in_Data4"),
+            22 * ::std::mem::size_of::<f32>() + 4 * ::std::mem::size_of::<u8>(),
+            -1,
+            glium::vertex::AttributeType::F32F32F32F32,
+            false,
+        ),
+        (
+            Cow::Borrowed("in_Data5"),
+            26 * ::std::mem::size_of::<f32>() + 4 * ::std::mem::size_of::<u8>(),
+            -1,
+            glium::vertex::AttributeType::F32F32F32F32,
+            false,
+        ),
+        (
+            Cow::Borrowed("in_Data6"),
+            30 * ::std::mem::size_of::<f32>() + 4 * ::std::mem::size_of::<u8>(),
+            -1,
+            glium::vertex::AttributeType::F32F32F32F32,
+            false,
+        ),
+    ]);
+
+    static ref BINDING_2F4UB2F: StaticVertexFormatBinding = Cow::Owned(vec![
+        (
+            Cow::Borrowed("in_Position"),
+            0,
+            -1,
+            glium::vertex::AttributeType::F32F32,
+            false,
+        ),
+        (
+            Cow::Borrowed("in_Color"),
+            2 * ::std::mem::size_of::<f32>(),
+            -1,
+            glium::vertex::AttributeType::U8U8U8U8,
+            true,
+        ),
+        (
+            Cow::Borrowed("in_TexCoord"),
+            2 * ::std::mem::size_of::<f32>() + 4 * ::std::mem::size_of::<u8>(),
+            -1,
+            glium::vertex::AttributeType::F32F32,
+            false,
+        ),
+    ]);
+
+}
 
 /// Errors can occure when calling [`create_gpu_driver`]
 #[derive(Debug, thiserror::Error)]
@@ -117,124 +226,23 @@ impl GliumDriverVertexBuffer {
     {
         match self {
             GliumDriverVertexBuffer::Format2f4ub2f(buf) => {
-                let format = Cow::Owned(vec![
-                    (
-                        Cow::Borrowed("in_Position"),
-                        0,
-                        -1,
-                        glium::vertex::AttributeType::F32F32,
-                        false,
-                    ),
-                    (
-                        Cow::Borrowed("in_Color"),
-                        2 * ::std::mem::size_of::<f32>(),
-                        -1,
-                        glium::vertex::AttributeType::U8U8U8U8,
-                        true,
-                    ),
-                    (
-                        Cow::Borrowed("in_TexCoord"),
-                        2 * ::std::mem::size_of::<f32>() + 4 * ::std::mem::size_of::<u8>(),
-                        -1,
-                        glium::vertex::AttributeType::F32F32,
-                        false,
-                    ),
-                ]);
+                
                 let element_size = std::mem::size_of::<ul_sys::ULVertex_2f_4ub_2f>();
 
                 // SAFETY: we know the structure of `ul_sys::ULVertex_2f_4ub_2f`
                 // and we know that we match it with the format description.
                 Ok(
-                    unsafe { glium::VertexBuffer::new_raw(context, &buf, format, element_size) }?
+                    unsafe { glium::VertexBuffer::new_raw(context, &buf, &BINDING_2F4UB2F, element_size) }?
                         .into(),
                 )
             }
             GliumDriverVertexBuffer::Format2f4ub2f2f28f(buf) => {
-                let format = Cow::Owned(vec![
-                    (
-                        Cow::Borrowed("in_Position"),
-                        0,
-                        -1,
-                        glium::vertex::AttributeType::F32F32,
-                        false,
-                    ),
-                    (
-                        Cow::Borrowed("in_Color"),
-                        2 * ::std::mem::size_of::<f32>(),
-                        -1,
-                        glium::vertex::AttributeType::U8U8U8U8,
-                        true,
-                    ),
-                    (
-                        Cow::Borrowed("in_TexCoord"),
-                        2 * ::std::mem::size_of::<f32>() + 4 * ::std::mem::size_of::<u8>(),
-                        -1,
-                        glium::vertex::AttributeType::F32F32,
-                        false,
-                    ),
-                    (
-                        Cow::Borrowed("in_ObjCoord"),
-                        4 * ::std::mem::size_of::<f32>() + 4 * ::std::mem::size_of::<u8>(),
-                        -1,
-                        glium::vertex::AttributeType::F32F32,
-                        false,
-                    ),
-                    (
-                        Cow::Borrowed("in_Data0"),
-                        6 * ::std::mem::size_of::<f32>() + 4 * ::std::mem::size_of::<u8>(),
-                        -1,
-                        glium::vertex::AttributeType::F32F32F32F32,
-                        false,
-                    ),
-                    (
-                        Cow::Borrowed("in_Data1"),
-                        10 * ::std::mem::size_of::<f32>() + 4 * ::std::mem::size_of::<u8>(),
-                        -1,
-                        glium::vertex::AttributeType::F32F32F32F32,
-                        false,
-                    ),
-                    (
-                        Cow::Borrowed("in_Data2"),
-                        14 * ::std::mem::size_of::<f32>() + 4 * ::std::mem::size_of::<u8>(),
-                        -1,
-                        glium::vertex::AttributeType::F32F32F32F32,
-                        false,
-                    ),
-                    (
-                        Cow::Borrowed("in_Data3"),
-                        18 * ::std::mem::size_of::<f32>() + 4 * ::std::mem::size_of::<u8>(),
-                        -1,
-                        glium::vertex::AttributeType::F32F32F32F32,
-                        false,
-                    ),
-                    (
-                        Cow::Borrowed("in_Data4"),
-                        22 * ::std::mem::size_of::<f32>() + 4 * ::std::mem::size_of::<u8>(),
-                        -1,
-                        glium::vertex::AttributeType::F32F32F32F32,
-                        false,
-                    ),
-                    (
-                        Cow::Borrowed("in_Data5"),
-                        26 * ::std::mem::size_of::<f32>() + 4 * ::std::mem::size_of::<u8>(),
-                        -1,
-                        glium::vertex::AttributeType::F32F32F32F32,
-                        false,
-                    ),
-                    (
-                        Cow::Borrowed("in_Data6"),
-                        30 * ::std::mem::size_of::<f32>() + 4 * ::std::mem::size_of::<u8>(),
-                        -1,
-                        glium::vertex::AttributeType::F32F32F32F32,
-                        false,
-                    ),
-                ]);
                 let element_size = std::mem::size_of::<ul_sys::ULVertex_2f_4ub_2f_2f_28f>();
 
                 // SAFETY: we know the structure of `ul_sys::ULVertex_2f_4ub_2f_2f_28f`
                 // and we know that we match it with the format description.
                 Ok(
-                    unsafe { glium::VertexBuffer::new_raw(context, &buf, format, element_size) }?
+                    unsafe { glium::VertexBuffer::new_raw(context, &buf, &BINDING_2F4UB2F2F28F, element_size) }?
                         .into(),
                 )
             }
@@ -506,7 +514,7 @@ impl GliumGpuDriverReceiver {
         if bitmap.is_empty() {
             Texture2d::empty(&self.context, bitmap.width(), bitmap.height())
                 .map_err(|e| e.into())
-                .map(|t| EitherTexture::Regular2d(t))
+                .map(EitherTexture::Regular2d)
         } else {
             // since its not empty, it should have a valid pixels.
             let bitmap_pixels = bitmap.pixels().unwrap();
@@ -526,7 +534,7 @@ impl GliumGpuDriverReceiver {
                         MipmapsOption::NoMipmap,
                     )
                     .map_err(|e| e.into())
-                    .map(|t| EitherTexture::Regular2d(t))
+                    .map(EitherTexture::Regular2d)
                 }
                 BitmapFormat::Bgra8UnormSrgb => {
                     let img = RawImage2d {
@@ -543,7 +551,7 @@ impl GliumGpuDriverReceiver {
                         MipmapsOption::NoMipmap,
                     )
                     .map_err(|e| e.into())
-                    .map(|t| EitherTexture::Srgb2d(t))
+                    .map(EitherTexture::Srgb2d)
                 }
             }
         }
@@ -723,6 +731,7 @@ impl GliumGpuDriverReceiver {
                                 ];
 
                                 // multiply matrices
+                                #[allow(clippy::needless_range_loop)]
                                 for i in 0..4 {
                                     for j in 0..4 {
                                         for k in 0..4 {
