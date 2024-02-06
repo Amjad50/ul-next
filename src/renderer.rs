@@ -15,7 +15,7 @@ use crate::{
 };
 
 /// A Session stores local data such as cookies, local storage, and application
-/// cache for one or more [`View`](crate::view::View)s.
+/// cache for one or more [`View`]s.
 /// (See [`Renderer::create_session`](crate::renderer::Renderer::create_session))
 pub struct Session {
     internal: ul_sys::ULSession,

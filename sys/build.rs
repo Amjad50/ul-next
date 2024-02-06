@@ -3,6 +3,13 @@ use std::process::Command;
 use std::{env, fs};
 
 fn main() {
+    // skip if we are building doc
+    #[cfg(feature = "docs_only")]
+    {
+        // use return, to reduce the indentation level
+        return;
+    }
+
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     let ultralight_dir = out_dir.join("Ultralight");
 

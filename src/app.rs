@@ -5,7 +5,7 @@
 //!
 //! If you want to have access to the inner parts of the `Ultralight` engine,
 //! have access to the textures to integrate into your game/application, check
-//! [`Renderer`](crate::renderer::Renderer) where you can implement your own
+//! [`Renderer`] where you can implement your own
 //! [`GpuDriver`](crate::gpu_driver::GpuDriver) and integrate it with your project.
 use crate::config::Config;
 use crate::error::CreationError;
@@ -172,7 +172,7 @@ impl App {
     ///
     /// # Arguments
     /// * `settings` - The settings to customize the app runtime behaviour.
-    /// * `config` - Options for `Ultralight` [`Renderer`](crate::renderer::Renderer).
+    /// * `config` - Options for `Ultralight` [`Renderer`].
     ///
     /// Leaving `settings` or `config` as `None` will use the default settings/
     /// config.
@@ -238,7 +238,7 @@ impl App {
         unsafe { ul_sys::ulAppIsRunning(self.internal) }
     }
 
-    /// Get the underlying [`Renderer`](crate::renderer::Renderer) instance.
+    /// Get the underlying [`Renderer`] instance.
     pub fn renderer(&self) -> &Renderer {
         &self.renderer
     }
