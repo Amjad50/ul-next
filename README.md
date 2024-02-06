@@ -11,6 +11,11 @@ High level rust bindings for [Ultralight]. Alternative for the abandoned [`rust-
 
 Tested on Windows and Linux.
 
+> The API currently resembles the original C++ API for simplicity, and probably it will be changed to be more `rust` idiomatic.
+> Though it shouldn't affect older versions because of [`semver`](https://semver.org/).
+>
+> See the [CHANGELOG](./CHANGELOG.md) for more information.
+
 ## Extra files
 
 You need to include `resources` folder in the execution directory.
