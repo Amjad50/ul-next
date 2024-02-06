@@ -23,7 +23,8 @@ pub use either_texture::{EitherSampler, EitherTexture};
 
 mod either_texture;
 
-type StaticVertexFormatBinding = Cow<'static, [(Cow<'static, str>, usize, i32, AttributeType, bool)]>;
+type StaticVertexFormatBinding =
+    Cow<'static, [(Cow<'static, str>, usize, i32, AttributeType, bool)]>;
 
 lazy_static::lazy_static! {
     static ref BINDING_2F4UB2F2F28F: StaticVertexFormatBinding = Cow::Owned(vec![
@@ -226,25 +227,24 @@ impl GliumDriverVertexBuffer {
     {
         match self {
             GliumDriverVertexBuffer::Format2f4ub2f(buf) => {
-                
                 let element_size = std::mem::size_of::<ul_sys::ULVertex_2f_4ub_2f>();
 
                 // SAFETY: we know the structure of `ul_sys::ULVertex_2f_4ub_2f`
                 // and we know that we match it with the format description.
-                Ok(
-                    unsafe { glium::VertexBuffer::new_raw(context, &buf, &BINDING_2F4UB2F, element_size) }?
-                        .into(),
-                )
+                Ok(unsafe {
+                    glium::VertexBuffer::new_raw(context, &buf, &BINDING_2F4UB2F, element_size)
+                }?
+                .into())
             }
             GliumDriverVertexBuffer::Format2f4ub2f2f28f(buf) => {
                 let element_size = std::mem::size_of::<ul_sys::ULVertex_2f_4ub_2f_2f_28f>();
 
                 // SAFETY: we know the structure of `ul_sys::ULVertex_2f_4ub_2f_2f_28f`
                 // and we know that we match it with the format description.
-                Ok(
-                    unsafe { glium::VertexBuffer::new_raw(context, &buf, &BINDING_2F4UB2F2F28F, element_size) }?
-                        .into(),
-                )
+                Ok(unsafe {
+                    glium::VertexBuffer::new_raw(context, &buf, &BINDING_2F4UB2F2F28F, element_size)
+                }?
+                .into())
             }
         }
     }

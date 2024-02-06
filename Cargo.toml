@@ -1,6 +1,6 @@
 [package]
 name = "ul-next"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 authors = ["Amjad Alsharafi", "Francisco Ayala Le Brun"]
 description = "Ultralight Rust bindings"
@@ -9,7 +9,7 @@ readme = "README.md"
 repository = "https://github.com/Amjad50/ul-next"
 keywords = ["ultralight", "webview", "webrender", "graphics", "rendering"]
 categories = ["graphics", "rendering", "api-bindings"]
-
+rust-version = "1.60.0"
 
 [features]
 default = []

@@ -15,7 +15,7 @@ fn main() {
 
     // basic setup (check `render_to_png` for full explanation)
     platform::enable_platform_fontloader();
-    platform::enable_platform_filesystem(".").unwrap();
+    platform::enable_platform_filesystem("./examples").unwrap();
     platform::enable_default_logger("./log.log").unwrap();
 
     // use `glium` gpu driver, which is included in the library under the

@@ -57,7 +57,7 @@ fn main() {
     // all `file:///` URLs will be resolved against.
     //
     // NOTE: custom filesystem is still not supported in this library
-    platform::enable_platform_filesystem(".").unwrap();
+    platform::enable_platform_filesystem("./examples").unwrap();
 
     // Register a logger that logs messages to the console.
     //

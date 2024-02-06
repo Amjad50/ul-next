@@ -18,8 +18,7 @@ impl UlString {
     /// Creates a new `UlString` from a `&str`. But will not destroy on drop.
     /// This will be sent to `Ultralight` library and it will handle its memory.
     pub(crate) unsafe fn from_str_unmanaged(s: &str) -> Result<ul_sys::ULString, CreationError> {
-        let internal =
-            ul_sys::ulCreateStringUTF8(s.as_bytes().as_ptr() as *const i8, s.len());
+        let internal = ul_sys::ulCreateStringUTF8(s.as_bytes().as_ptr() as *const i8, s.len());
         if internal.is_null() {
             Err(CreationError::UlStringCreationError(s.to_string()))
         } else {

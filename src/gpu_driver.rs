@@ -380,7 +380,7 @@ platform_set_interface_macro! {
         next_render_buffer_id(() -> u32) -> () {}
         create_render_buffer((render_buffer_id: u32, ul_render_buffer: ul_sys::ULRenderBuffer))
             -> ((render_buffer_id: u32, render_buffer: RenderBuffer)) {
-            let render_buffer = RenderBuffer::try_from(ul_render_buffer).unwrap();
+            let render_buffer = RenderBuffer::from(ul_render_buffer);
         }
         destroy_render_buffer((render_buffer_id: u32)) -> ((render_buffer_id: u32)) {}
         next_geometry_id(() -> u32) -> () {}
