@@ -16,6 +16,13 @@ Tested on Windows and Linux.
 >
 > See the [CHANGELOG](./CHANGELOG.md) for more information.
 
+## Other bindings
+
+| Name | Status | Description |
+| ---- | ------ | ----------- |
+| [`rust-ul`] | Abandoned | Low level bindings for Ultralight. |
+| [`ultralight`] | Active | Opinionated Rust bindings for Ultralight. |
+
 ## Extra files
 
 You need to include `resources` folder in the execution directory.
@@ -49,5 +56,6 @@ This project uses the `ULTRALIGHT FREE LICENSE AGREEMENT - V1`. See [LICENSE](./
 
 
 [`rust-ul`]: https://github.com/psychonautwiki/rust-ul
+[`ultralight`]: https://github.com/VZout/ultralight
 [Ultralight]: https://ultralig.ht
 [Ultralight SDK]: https://github.com/ultralight-ux/Ultralight/releases/latest
