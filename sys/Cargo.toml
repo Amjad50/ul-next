@@ -1,12 +1,14 @@
 [package]
 name = "ul-next-sys"
-version = "1.4.0-alpha.0"
+version = "1.4.0-alpha.1"
 edition = "2021"
 authors = ["Amjad Alsharafi"]
 description = "sys bindings for Ultralight, for ul-next"
 license-file = "../LICENSE.txt"
 readme = "../README.md"
 repository = "https://github.com/Amjad50/ul-next"
+keywords = ["ultralight", "webview", "webrender", "graphics", "rendering"]
+categories = ["graphics", "rendering", "api-bindings"]
 
 [features]
 # link only Ultralight unique libraries, and not other dependancies that
