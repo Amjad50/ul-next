@@ -1,0 +1,19 @@
+[package]
+name = "ul-next-sys"
+version = "1.4.0-alpha.0"
+edition = "2021"
+authors = ["Amjad Alsharafi"]
+description = "sys bindings for Ultralight, for ul-next"
+license-file = "../LICENSE.txt"
+readme = "../README.md"
+repository = "https://github.com/Amjad50/ul-next"
+
+[features]
+# link only Ultralight unique libraries, and not other dependancies that
+# may be available in the host system (such as libglib and libgio)
+only-ul-deps = []
+
+[build-dependencies]
+cmake = "0.1"
+
+[dependencies]

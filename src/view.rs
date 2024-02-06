@@ -939,28 +939,30 @@ impl View {
         unsafe { ul_sys::ulViewGetNeedsPaint(self.internal) }
     }
 
-    /// Create an inspector for this View, this is useful for debugging and
-    /// inspecting pages locally. This will only succeed if you have the
-    /// inspector assets in your filesystem-- the inspector will
-    /// look for `file:///inspector/Main.html` when it loads.
-    ///
-    /// The initial dimensions of the returned View are 10x10, you should
-    /// call [`View::resize`] on the returned View to resize it to your desired
-    /// dimensions.
-    pub fn create_inspector_view(&self) -> Result<View, CreationError> {
-        unsafe {
-            let inspector_view = ul_sys::ulViewCreateInspectorView(self.internal);
-            if inspector_view.is_null() {
-                Err(CreationError::NullReference)
-            } else {
-                // we need to destroy the view when its dropped, its not owned by anyone
-                Ok(View {
-                    internal: inspector_view,
-                    need_to_destroy: true,
-                })
-            }
-        }
-    }
+    // TODO: this broke after updating the CAPI which removed the function `ulViewCreateInspectorView`
+    //
+    // /// Create an inspector for this View, this is useful for debugging and
+    // /// inspecting pages locally. This will only succeed if you have the
+    // /// inspector assets in your filesystem-- the inspector will
+    // /// look for `file:///inspector/Main.html` when it loads.
+    // ///
+    // /// The initial dimensions of the returned View are 10x10, you should
+    // /// call [`View::resize`] on the returned View to resize it to your desired
+    // /// dimensions.
+    // pub fn create_inspector_view(&self) -> Result<View, CreationError> {
+    //     // unsafe {
+    //     //     let inspector_view = ul_sys::ulViewCreateInspectorView(self.internal);
+    //     //     if inspector_view.is_null() {
+    //     //         Err(CreationError::NullReference)
+    //     //     } else {
+    //     //         // we need to destroy the view when its dropped, its not owned by anyone
+    //     //         Ok(View {
+    //     //             internal: inspector_view,
+    //     //             need_to_destroy: true,
+    //     //         })
+    //     //     }
+    //     // }
+    // }
 }
 
 impl Drop for View {

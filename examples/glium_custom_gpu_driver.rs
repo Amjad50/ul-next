@@ -1,11 +1,10 @@
 use glium::implement_vertex;
-use glium::{uniform, Surface};
 use glium::{index::PrimitiveType, program::ProgramCreationInput, Program};
-use rust_ul_next::{config::Config, platform, renderer::Renderer, view::ViewConfig};
+use glium::{uniform, Surface};
+use ul_next::{config::Config, platform, renderer::Renderer, view::ViewConfig};
 
 fn main() {
-    let event_loop = winit::event_loop::EventLoopBuilder::new()
-        .build();
+    let event_loop = winit::event_loop::EventLoopBuilder::new().build();
 
     let (_window, display) = glium::backend::glutin::SimpleWindowBuilder::new()
         .with_title("Glium tutorial #5")
@@ -21,8 +20,7 @@ fn main() {
 
     // use `glium` gpu driver, which is included in the library under the
     // feature `glium`
-    let (sender, mut receiver) =
-        rust_ul_next::gpu_driver::glium::create_gpu_driver(&display).unwrap();
+    let (sender, mut receiver) = ul_next::gpu_driver::glium::create_gpu_driver(&display).unwrap();
     platform::set_gpu_driver(sender);
 
     let renderer = Renderer::create(config).unwrap();
@@ -74,8 +72,7 @@ fn main() {
 
     // building the index buffer
     let index_buffer =
-        glium::IndexBuffer::new(&display, PrimitiveType::TriangleStrip, &[1u16, 2, 0, 3])
-            .unwrap();
+        glium::IndexBuffer::new(&display, PrimitiveType::TriangleStrip, &[1u16, 2, 0, 3]).unwrap();
 
     let program = Program::new(
         &display,

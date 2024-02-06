@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use rust_ul_next::{app::App, platform, window::WindowFlags};
+use ul_next::{app::App, platform, window::WindowFlags};
 
 /// This example is ported from the `Ultralight` main repository.
 

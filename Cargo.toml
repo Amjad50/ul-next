@@ -1,8 +1,12 @@
 [package]
-name = "rust-ul-next"
+name = "ul-next"
 version = "0.2.0"
 edition = "2021"
-
+authors = ["Amjad Alsharafi", "Francisco Ayala Le Brun"]
+description = "Ultralight Rust bindings"
+license-file = "LICENSE.txt"
+readme = "README.md"
+repository = "https://github.com/Amjad50/ul-next"
 
 [features]
 default = []
@@ -10,15 +14,12 @@ default = []
 # may be available in the host system (such as libglib and libgio)
 only-ul-deps = ["ul-sys/only-ul-deps"]
 
-
 [dependencies]
-ul-sys = { version = "1.4.0-alpha.0", git = "https://github.com/VideowindoW/rust-ul-sys", rev = "4d65db30624fbb5c32a15161e1c913468d181099" }
+ul-sys = { version="1.4.0-alpha.0", package="ul-next-sys", path="sys" }
 scopeguard = "1.1.0"
 lazy_static = "1.4.0"
-glium = { version = "0.33", default-features = false, features = [], optional = true }
+glium = { version="0.33", default-features=false, features=[], optional=true }
 thiserror = "1.0.31"
-
-
 
 [dev-dependencies]
 png = "0.17.5"
@@ -29,3 +30,6 @@ glutin-winit = "0.4.0"
 [[example]]
 name = "glium_custom_gpu_driver"
 required-features = ["glium"]
+
+[workspace]
+members = ["sys"]

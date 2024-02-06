@@ -8,7 +8,7 @@ use std::{
     time::Duration,
 };
 
-use rust_ul_next::{
+use ul_next::{
     config::Config,
     platform::{self, LogLevel, Logger},
     renderer::Renderer,
