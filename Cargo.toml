@@ -1,6 +1,6 @@
 [package]
 name = "ul-next"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2021"
 authors = ["Amjad Alsharafi", "Francisco Ayala Le Brun"]
 description = "Ultralight Rust bindings"
@@ -19,7 +19,7 @@ docs_only = ["ul-sys/docs_only"]
 only-ul-deps = ["ul-sys/only-ul-deps"]
 
 [dependencies]
-ul-sys = { version="1.4.0-alpha.2", package="ul-next-sys", path="sys" }
+ul-sys = { version="1.4.0-alpha.3", package="ul-next-sys", path="sys" }
 scopeguard = "1.1"
 lazy_static = "1.4"
 glium = { version="0.33", default-features=false, features=[], optional=true }

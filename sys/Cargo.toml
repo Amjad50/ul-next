@@ -1,6 +1,6 @@
 [package]
 name = "ul-next-sys"
-version = "1.4.0-alpha.2"
+version = "1.4.0-alpha.3"
 edition = "2021"
 authors = ["Amjad Alsharafi"]
 description = "sys bindings for Ultralight, for ul-next"

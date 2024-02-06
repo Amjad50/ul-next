@@ -41,6 +41,7 @@ fn main() {
 
         let dst = cmake::build(ultralight_dir.join("packager"));
         let lib_bin_dir = dst.join("bin");
+        let lib_lib_dir = dst.join("lib");
 
         if cfg!(feature = "only-ul-deps") {
             let allowed_files = [
@@ -76,6 +77,8 @@ fn main() {
         }
 
         println!("cargo:rustc-link-search=native={}", lib_bin_dir.display());
+        // for windows only
+        println!("cargo:rustc-link-search=native={}", lib_lib_dir.display());
 
         println!("cargo:rustc-link-lib=dylib=Ultralight");
         println!("cargo:rustc-link-lib=dylib=WebCore");
