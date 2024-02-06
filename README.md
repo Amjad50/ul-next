@@ -5,7 +5,7 @@
 [![docs.rs (with version)](https://img.shields.io/docsrs/ul-next/latest)](https://docs.rs/ul-next)
 
 
-High level rust bindings for [Ultralight]. Replacement for [`rust-ul`].
+High level rust bindings for [Ultralight]. Alternative for the abandoned [`rust-ul`].
 
 [Ultralight] is a lightweight, high-performance HTML rendering engine designed for applications that require a high degree of customization. Using GPU-accelerated HTML rendering, it's a great fit for rendering user interfaces in games, and other applications.
 
