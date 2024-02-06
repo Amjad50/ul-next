@@ -4,7 +4,7 @@ use glium::{uniform, Surface};
 use ul_next::{config::Config, platform, renderer::Renderer, view::ViewConfig};
 
 fn main() {
-    let event_loop = winit::event_loop::EventLoopBuilder::new().build();
+    let event_loop = winit::event_loop::EventLoopBuilder::new().build().unwrap();
 
     let (_window, display) = glium::backend::glutin::SimpleWindowBuilder::new()
         .with_title("Glium tutorial #5")
@@ -151,25 +151,25 @@ fn main() {
     };
 
     update_and_draw(None);
-    event_loop.run(move |event, _, control_flow| {
-        *control_flow = match event {
-            winit::event::Event::WindowEvent { event, .. } => match event {
-                // Break from the main loop when the window is closed.
-                winit::event::WindowEvent::CloseRequested => winit::event_loop::ControlFlow::Exit,
-                // Redraw the triangle when the window is resized.
-                winit::event::WindowEvent::Resized(size) => {
-                    update_and_draw(Some((size.width, size.height)));
-
-                    winit::event_loop::ControlFlow::Poll
+    event_loop
+        .run(move |event, target| {
+            match event {
+                winit::event::Event::WindowEvent { event, .. } => match event {
+                    // Break from the main loop when the window is closed.
+                    winit::event::WindowEvent::CloseRequested => target.exit(),
+                    // Redraw the triangle when the window is resized.
+                    winit::event::WindowEvent::Resized(size) => {
+                        update_and_draw(Some((size.width, size.height)));
+                    }
+                    _ => {}
+                },
+                _ => {
+                    update_and_draw(None);
                 }
-                _ => winit::event_loop::ControlFlow::Poll,
-            },
-            _ => {
-                update_and_draw(None);
-                winit::event_loop::ControlFlow::Poll
-            }
-        };
-    });
+            };
+            target.set_control_flow(winit::event_loop::ControlFlow::Poll);
+        })
+        .unwrap();
 }
 
 const HTML_STRING: &str = r#"
