@@ -72,7 +72,7 @@ pub struct ConfigBuilder {
     min_small_heap_size: Option<u32>,
     num_renderer_threads: Option<u32>,
     max_update_time: Option<f64>,
-    bitmap_alignment: Option<f64>,
+    bitmap_alignment: Option<u32>,
 }
 
 impl ConfigBuilder {
@@ -242,7 +242,7 @@ impl ConfigBuilder {
     ///
     /// You can set this to '0' to perform no padding
     /// (row_bytes will always be `width * 4`) at a slight cost to performance.
-    pub fn bitmap_alignment(mut self, alignment: f64) -> Self {
+    pub fn bitmap_alignment(mut self, alignment: u32) -> Self {
         self.bitmap_alignment = Some(alignment);
         self
     }
