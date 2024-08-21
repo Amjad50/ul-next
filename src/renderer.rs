@@ -159,7 +159,7 @@ impl Renderer {
     ///
     /// You should only call this once per process lifetime.
     ///
-    /// You shoud set up your platform handlers (eg,
+    /// You must set up your platform handlers (eg,
     /// [`platform::set_gpu_driver`](crate::platform::set_gpu_driver),
     /// [`platform::set_logger`](crate::platform::set_logger),
     /// [`platform::enable_default_logger`](crate::platform::enable_default_logger),

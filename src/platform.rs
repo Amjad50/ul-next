@@ -180,14 +180,14 @@ platform_set_interface_macro! {
 platform_set_interface_macro! {
     /// Set a custom FileSystem implementation.
     ///
-    /// This is used for loading File URLs (eg, <file:///page.html>). If
-    /// you don't call this, and are not using [`App::new`] or
-    /// [`enable_platform_filesystem`], you will not be able to load any File
-    /// URLs.
+    /// The library uses this to load all file URLs (eg, <file:///page.html>).
+    ///
+    /// You can provide the library with your own FileSystem implementation
+    /// so that file assets are loaded from your own pipeline.
     ///
     /// You should call this before [`Renderer::create`] or [`App::new`].
     ///
-    /// [`App::new`] will use the default platform file system if you never call this.
+    /// Note: [`App::new`] will use the default platform file system if you never call this.
     ///
     /// If you're not using [`App::new`], (eg, using [`Renderer::create`]) you
     /// can still use the default platform file system by calling

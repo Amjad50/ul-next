@@ -76,8 +76,9 @@ pub struct ConfigBuilder {
 }
 
 impl ConfigBuilder {
-    /// The file path to a writable directory that will be used to store cookies, cached resources,
-    /// and other persistent data.
+    /// A writable OS file path to store persistent Session data in.
+    ///
+    /// This data may include cookies, cached network resources, indexed DB, etc.
     ///
     /// Files are only written to disk when using a persistent Session (see
     /// [`Renderer::create_session`](crate::renderer::Renderer::create_session)).
@@ -86,9 +87,13 @@ impl ConfigBuilder {
         self
     }
 
-    /// The library loads bundled resources (eg, cacert.pem and other localized resources) from the
-    /// FileSystem API (eg, `file:///resources/cacert.pem`). You can customize the prefix to use when
-    /// loading resource URLs by modifying this setting.
+    /// The relative path to the resources folder (loaded via the FileSystem API).
+    /// The library loads certain resources (SSL certs, ICU data, etc.)
+    /// from the FileSystem API during runtime (eg, `file:///resources/cacert.pem`).
+    ///
+    /// You can customize the relative file path to the resources folder by modifying this setting.
+    ///
+    /// (Default = “resources/”)
     pub fn resource_path_prefix(mut self, path: &str) -> Self {
         self.resource_path_prefix = Some(path.to_string());
         self
@@ -126,20 +131,26 @@ impl ConfigBuilder {
     /// Whether or not we should continuously repaint any Views or compositor
     /// layers, regardless if they are dirty or not. This is mainly used to
     /// diagnose painting/shader issues.
+    ///
+    /// (Default = false)
     pub fn force_repaint(mut self, force: bool) -> Self {
         self.force_repaint = Some(force);
         self
     }
 
     /// When a CSS animation is active, the amount of time (in seconds) to wait
-    /// before triggering another repaint. Default is 60 Hz.
+    /// before triggering another repaint.
+    ///
+    /// (Default = 1.0 / 60.0)
     pub fn animation_timer_delay(mut self, delay: f64) -> Self {
         self.animation_timer_delay = Some(delay);
         self
     }
 
     /// When a smooth scroll animation is active, the amount of time (in seconds)
-    /// to wait before triggering another repaint. Default is 60 Hz.
+    /// to wait before triggering another repaint.
+    ///
+    /// (Default = 1.0 / 60.0)
     pub fn scroll_timer_delay(mut self, delay: f64) -> Self {
         self.scroll_timer_delay = Some(delay);
         self
@@ -152,12 +163,14 @@ impl ConfigBuilder {
         self
     }
 
-    /// Size of WebCore's memory cache in bytes.
+    /// The size of WebCore's memory cache in bytes.
     ///
     /// You should increase this if you anticipate handling pages with large
     /// resources, Safari typically uses 128+ MiB for its cache.
     ///
     /// `size` is in bytes.
+    ///
+    /// (Default = 64 * 1024 * 1024)
     pub fn memory_cache_size(mut self, size: u32) -> Self {
         self.memory_cache_size = Some(size);
         self
@@ -173,6 +186,8 @@ impl ConfigBuilder {
         self
     }
 
+    /// The system's physical RAM size in bytes.
+    ///
     /// JavaScriptCore tries to detect the system's physical RAM size to set
     /// reasonable allocation limits. Set this to anything other than 0 to
     /// override the detected value. `size` is in bytes.
@@ -188,6 +203,8 @@ impl ConfigBuilder {
     /// heaps start with a smaller initial value.
     ///
     /// `size` is in bytes.
+    ///
+    /// (Default = 32 * 1024 * 1024)
     pub fn min_large_heap_size(mut self, size: u32) -> Self {
         self.min_large_heap_size = Some(size);
         self
@@ -197,6 +214,8 @@ impl ConfigBuilder {
     /// heaps start with a smaller initial value.
     ///
     /// `size` is in bytes.
+    ///
+    /// (Default = 1 * 1024 * 1024)
     pub fn min_small_heap_size(mut self, size: u32) -> Self {
         self.min_small_heap_size = Some(size);
         self
@@ -219,6 +238,8 @@ impl ConfigBuilder {
     /// [`Renderer::update`](crate::renderer::Renderer::update).
     /// The library will attempt to throttle timers and/or reschedule work if this
     /// time budget is exceeded.
+    ///
+    /// (Default = 1.0 / 200.0)
     pub fn max_update_time(mut self, time: f64) -> Self {
         self.max_update_time = Some(time);
         self
