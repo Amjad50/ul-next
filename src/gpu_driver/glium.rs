@@ -181,11 +181,11 @@ pub enum GliumGpuDriverError {
 /// renderer.render(); // will dispatch and send all events to `reciever` from `ultralight`
 /// receiver.render(); // will render all events received from `sender`
 /// ```
-pub fn create_gpu_driver<F: ?Sized>(
+pub fn create_gpu_driver<F>(
     facade: &F,
 ) -> Result<(GliumGpuDriverSender, GliumGpuDriverReceiver), GliumGpuDriverError>
 where
-    F: Facade,
+    F: Facade + ?Sized,
 {
     let (sender, receiver) = mpsc::channel();
     Ok((
@@ -218,12 +218,12 @@ enum GliumDriverVertexBuffer {
 }
 
 impl GliumDriverVertexBuffer {
-    fn into_glium_vertex_buffer<F: ?Sized>(
+    fn into_glium_vertex_buffer<F>(
         self,
         context: &F,
     ) -> Result<VertexBufferAny, GliumGpuDriverError>
     where
-        F: Facade,
+        F: Facade + ?Sized,
     {
         match self {
             GliumDriverVertexBuffer::Format2f4ub2f(buf) => {

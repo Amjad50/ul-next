@@ -228,10 +228,10 @@ impl Renderer {
     ///
     /// # Arguments
     /// * `is_persistent` - Whether or not to store the session on disk.
-    /// Persistent sessions will be written to the path set in
-    /// [`ConfigBuilder::cache_path`](crate::config::ConfigBuilder::cache_path).
+    ///   Persistent sessions will be written to the path set in
+    ///   [`ConfigBuilder::cache_path`](crate::config::ConfigBuilder::cache_path).
     /// * `name` -  A unique name for this session, this will be used to
-    /// generate a unique disk path for persistent sessions.
+    ///   generate a unique disk path for persistent sessions.
     pub fn create_session(
         &self,
         is_persistent: bool,
@@ -253,7 +253,7 @@ impl Renderer {
     /// * `height` - The initial height, in pixels.
     /// * `config` - The configuration for the view.
     /// * `session` - The session to store local data in. Passing [`None`] will
-    /// use the default session.
+    ///   use the default session.
     pub fn create_view(
         &self,
         width: u32,

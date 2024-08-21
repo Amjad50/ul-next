@@ -5,11 +5,11 @@
 //!
 //! There are two options to use the library:
 //! - Using the [`App`] struct, which is a managed application that allows
-//! to create [`Window`]s that can contain multiple [`Overlay`]s, you can
-//! control the position and size of the [`Overlay`]s, and the inner [`View`]s.
+//!   to create [`Window`]s that can contain multiple [`Overlay`]s, you can
+//!   control the position and size of the [`Overlay`]s, and the inner [`View`]s.
 //! - The other option is using the [`Renderer`] directly, in that case, if you
-//! want to have GPU rendering in your application you need to supply a custom
-//! [`GpuDriver`] in [`platform::set_gpu_driver`].
+//!   want to have GPU rendering in your application you need to supply a custom
+//!   [`GpuDriver`] in [`platform::set_gpu_driver`].
 //!
 //! This library also contain a custom [`glium`](crate::gpu_driver::glium)
 //! [`GpuDriver`] implementation that can be used for easier integration.
