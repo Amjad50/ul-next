@@ -724,7 +724,7 @@ impl View {
         /// Set callback for when the page wants to create a new View.
         ///
         /// This is usually the result of a user clicking a link with
-        /// target="_blank" or by JavaScript calling window.open(url).
+        /// `target="_blank"` or by JavaScript calling `window.open(url)`.
         ///
         /// To allow creation of these new Views, you should create a new View
         /// in this callback (eg. [`Renderer::create_view`](crate::renderer::Renderer::create_view)),
@@ -761,6 +761,53 @@ impl View {
                let opener_url = UlString::copy_raw_to_string(ul_opener_url).unwrap();
                let target_url = UlString::copy_raw_to_string(ul_target_url).unwrap();
                let popup_rect = Rect::from(ul_popup_rect);
+        } {
+            if let Some(ret_view) = ret_view {
+                ret_view.internal
+            } else {
+                std::ptr::null_mut()
+            }
+        }
+    }
+
+    set_callback! {
+        // TODO: this callback require that you return owned `View`
+        //       but because you have to render it yourself, this won't do,
+        //       its better to return a reference, but not sure how we should
+        //       manage the owner and lifetime.
+        //       You can return `None` and create a new view since you have
+        //       the `url` and all information needed to create it.
+        //
+        /// Set callback for when the page wants to create a new View to display the
+        /// local inspector in.
+        ///
+        /// See also [`View::create_local_inspector_view`].
+        ///
+        /// To allow creation of these new Views, you should create a new View
+        /// in this callback (eg. [`Renderer::create_view`](crate::renderer::Renderer::create_view)),
+        /// resize it to your container, and return it.
+        /// You are responsible for displaying the returned View.
+        ///
+        /// # Callback Arguments
+        /// * `view: &View` - The view that fired the event (eg. self)
+        /// * `is_local: bool` - Whether or not this inspector view is local
+        /// * `inspected_url: String` - The url of the page that initiated this request
+        ///
+        /// You should return [`None`] if you want to block the action.
+        pub fn set_create_inspector_view_callback(&self, callback: FnMut(
+                view: &View,
+                is_local: bool,
+                inspected_url: String
+                // TODO: should we change the return type?
+                //       since the new view will be owned by another overlay
+            ) -> ret_view: Option<View>) :
+            ulViewSetCreateInspectorViewCallback(
+               ul_view: ul_sys::ULView,
+               is_local: bool,
+               ul_inspected_url: ul_sys::ULString
+            ) -> ul_sys::ULView {
+               let view = &View::from_raw(ul_view).unwrap();
+                let inspected_url = UlString::copy_raw_to_string(ul_inspected_url).unwrap();
         } {
             if let Some(ret_view) = ret_view {
                 ret_view.internal
@@ -939,30 +986,20 @@ impl View {
         unsafe { ul_sys::ulViewGetNeedsPaint(self.internal) }
     }
 
-    // TODO: this broke after updating the CAPI which removed the function `ulViewCreateInspectorView`
-    //
-    // /// Create an inspector for this View, this is useful for debugging and
-    // /// inspecting pages locally. This will only succeed if you have the
-    // /// inspector assets in your filesystem-- the inspector will
-    // /// look for `file:///inspector/Main.html` when it loads.
-    // ///
-    // /// The initial dimensions of the returned View are 10x10, you should
-    // /// call [`View::resize`] on the returned View to resize it to your desired
-    // /// dimensions.
-    // pub fn create_inspector_view(&self) -> Result<View, CreationError> {
-    //     // unsafe {
-    //     //     let inspector_view = ul_sys::ulViewCreateInspectorView(self.internal);
-    //     //     if inspector_view.is_null() {
-    //     //         Err(CreationError::NullReference)
-    //     //     } else {
-    //     //         // we need to destroy the view when its dropped, its not owned by anyone
-    //     //         Ok(View {
-    //     //             internal: inspector_view,
-    //     //             need_to_destroy: true,
-    //     //         })
-    //     //     }
-    //     // }
-    // }
+    /// Create an Inspector View to inspect / debug this View locally
+    ///
+    /// This will only succeed if you have the
+    /// inspector assets in your filesystem-- the inspector will
+    /// look for `file:///inspector/Main.html` when it loads.
+    ///
+    /// You must handle [`View::set_create_inspector_view_callback`] so that
+    /// the library has a View to display the inspector in. This function will
+    /// call the callback only if an inspector view is not currently active.
+    pub fn create_local_inspector_view(&self) {
+        unsafe {
+            ul_sys::ulViewCreateLocalInspectorView(self.internal);
+        }
+    }
 }
 
 impl Drop for View {
