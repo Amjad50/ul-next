@@ -263,6 +263,14 @@ impl Renderer {
     ) -> Option<View> {
         unsafe { View::create(self.internal, width, height, view_config, session) }
     }
+
+    /// Notify the renderer that a display has refreshed (you should call this after vsync).
+    ///
+    /// This updates animations, smooth scroll, and `window.requestAnimationFrame()` for all Views
+    /// matching the display id.
+    pub fn refresh_display(&self, display_id: u32) {
+        unsafe { ul_sys::ulRefreshDisplay(self.internal, display_id) }
+    }
 }
 
 impl Drop for Renderer {

@@ -161,6 +161,7 @@ pub struct ViewConfigBuilder {
     font_family_serif: Option<String>,
     font_family_sans_serif: Option<String>,
     user_agent: Option<String>,
+    display_id: Option<u32>,
 }
 
 impl ViewConfigBuilder {
@@ -269,6 +270,19 @@ impl ViewConfigBuilder {
         self
     }
 
+    /// A user-generated id for the display (monitor, TV, or screen) that this View will be shown on.
+    ///
+    /// Animations are driven based on the physical refresh rate of the display. Multiple Views can
+    /// share the same display.
+    ///
+    /// Note: This is automatically managed for you when [`App`][crate::app::App] is used.
+    ///
+    /// See also [`Renderer::refresh_display`][crate::renderer::Renderer::refresh_display].
+    pub fn display_id(mut self, display_id: u32) -> Self {
+        self.display_id = Some(display_id);
+        self
+    }
+
     /// Builds the [`ViewConfig`] struct using the settings configured in this builder.
     ///
     /// Returns [`None`] if failed to create [`ViewConfig`].
@@ -314,6 +328,7 @@ impl ViewConfigBuilder {
             ulViewConfigSetFontFamilySansSerif
         );
         set_config_str!(internal, self.user_agent, ulViewConfigSetUserAgent);
+        set_config!(internal, self.display_id, ulViewConfigSetDisplayId);
 
         Some(ViewConfig { internal })
     }
@@ -619,6 +634,18 @@ impl View {
     /// Fire a scroll event
     pub fn fire_scroll_event(&self, scroll_event: ScrollEvent) {
         unsafe { ul_sys::ulViewFireScrollEvent(self.internal, scroll_event.to_ul()) }
+    }
+
+    /// Get the display id of the View.
+    pub fn get_display_id(&self) -> u32 {
+        unsafe { ul_sys::ulViewGetDisplayId(self.internal) }
+    }
+
+    /// Set the display id of the View.
+    ///
+    /// This should be called when the View is moved to another display.
+    pub fn set_display_id(&self, display_id: u32) {
+        unsafe { ul_sys::ulViewSetDisplayId(self.internal, display_id) }
     }
 
     // looking at the CPP header, the strings seems to be references
