@@ -10,6 +10,7 @@
 use crate::{
     config::Config,
     error::CreationError,
+    event::{GamepadAxisEvent, GamepadButtonEvent, GamepadEvent},
     string::UlString,
     view::{View, ViewConfig},
 };
@@ -270,6 +271,71 @@ impl Renderer {
     /// matching the display id.
     pub fn refresh_display(&self, display_id: u32) {
         unsafe { ul_sys::ulRefreshDisplay(self.internal, display_id) }
+    }
+
+    /// Describe the details of a gamepad, to be used with FireGamepadEvent and related
+    /// events below. This can be called multiple times with the same index if the details change.
+    ///
+    /// # Arguments
+    /// * `index` - The unique index (or "connection slot") of the gamepad. For example,
+    ///   controller #1 would be "1", controller #2 would be "2" and so on.
+    /// * `id` - A string ID representing the device, this will be made available
+    ///   in JavaScript as gamepad.id
+    /// * `axis_count` - The number of axes on the device.
+    /// * `button_count` - The number of buttons on the device
+    pub fn set_gamepad_details(
+        &self,
+        index: u32,
+        id: &str,
+        axis_count: u32,
+        button_count: u32,
+    ) -> Result<(), CreationError> {
+        unsafe {
+            let ul_string_id = UlString::from_str(id)?;
+
+            ul_sys::ulSetGamepadDetails(
+                self.internal,
+                index,
+                ul_string_id.to_ul(),
+                axis_count,
+                button_count,
+            );
+        }
+        Ok(())
+    }
+
+    /// Fire a gamepad event (connection / disconnection).
+    ///
+    /// Note:  The gamepad should first be described via [`set_gamepad_details`][Self::set_gamepad_details] before calling this
+    ///        function.
+    ///
+    /// See <https://developer.mozilla.org/en-US/docs/Web/API/Gamepad>
+    pub fn fire_gamepad_event(&self, event: GamepadEvent) -> Result<(), CreationError> {
+        unsafe { ul_sys::ulFireGamepadEvent(self.internal, event.to_ul()) };
+        Ok(())
+    }
+
+    /// Fire a gamepad axis event (to be called when an axis value is changed).
+    ///
+    /// Note:  The gamepad should be connected via a call to [`fire_gamepad_event`][Self::fire_gamepad_event] before calling this function.
+    ///
+    /// See <https://developer.mozilla.org/en-US/docs/Web/API/Gamepad/axes>
+    pub fn fire_gamepad_axis_event(&self, event: GamepadAxisEvent) -> Result<(), CreationError> {
+        unsafe { ul_sys::ulFireGamepadAxisEvent(self.internal, event.to_ul()) };
+        Ok(())
+    }
+
+    /// Fire a gamepad button event (to be called when a button value is changed).
+    ///
+    /// Note:  The gamepad should be connected via a call to [`fire_gamepad_event`][Self::fire_gamepad_event] before calling this function.
+    ///
+    /// See <https://developer.mozilla.org/en-US/docs/Web/API/Gamepad/axes>
+    pub fn fire_gamepad_button_event(
+        &self,
+        event: GamepadButtonEvent,
+    ) -> Result<(), CreationError> {
+        unsafe { ul_sys::ulFireGamepadButtonEvent(self.internal, event.to_ul()) };
+        Ok(())
     }
 }
 
