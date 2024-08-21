@@ -2,11 +2,13 @@
 //! network requests, and event dispatch
 //!
 //! [`Renderer`] should be used when you want to access GPU internals and textures
-//! to integerate with your own rendering pipeline.
+//! to integrate with your own rendering pipeline.
 //!
 //! Before creating a renderer [`Renderer::create`] you must supply a custom
 //! [`GpuDriver`](crate::gpu_driver::GpuDriver) in
 //! [`platform::set_gpu_driver`](crate::platform::set_gpu_driver).
+use std::ffi::CString;
+
 use crate::{
     config::Config,
     error::CreationError,
@@ -263,6 +265,31 @@ impl Renderer {
         session: Option<&Session>,
     ) -> Option<View> {
         unsafe { View::create(self.internal, width, height, view_config, session) }
+    }
+
+    /// Start the remote inspector server.
+    ///
+    /// While the remote inspector is active, Views that are loaded into this renderer
+    /// will be able to be remotely inspected from another Ultralight instance either locally
+    /// (another app on same machine) or remotely (over the network) by navigating a View to:
+    /// ```txt
+    ///  inspector://<address>:<port>
+    /// ```
+    ///
+    /// Returns `true` if the server was started successfully, `false` otherwise.
+    pub fn start_remote_inspector_server(
+        &self,
+        address: &str,
+        port: u16,
+    ) -> Result<bool, CreationError> {
+        unsafe {
+            let c_str = CString::new(address)?;
+            Ok(ul_sys::ulStartRemoteInspectorServer(
+                self.internal,
+                c_str.as_ptr(),
+                port,
+            ))
+        }
     }
 
     /// Notify the renderer that a display has refreshed (you should call this after vsync).
