@@ -161,7 +161,7 @@ pub struct ViewConfigBuilder {
     font_family_serif: Option<String>,
     font_family_sans_serif: Option<String>,
     user_agent: Option<String>,
-    display_id: Option<u32>,
+    // display_id: Option<u32>,
 }
 
 impl ViewConfigBuilder {
@@ -270,18 +270,20 @@ impl ViewConfigBuilder {
         self
     }
 
-    /// A user-generated id for the display (monitor, TV, or screen) that this View will be shown on.
-    ///
-    /// Animations are driven based on the physical refresh rate of the display. Multiple Views can
-    /// share the same display.
-    ///
-    /// Note: This is automatically managed for you when [`App`][crate::app::App] is used.
-    ///
-    /// See also [`Renderer::refresh_display`][crate::renderer::Renderer::refresh_display].
-    pub fn display_id(mut self, display_id: u32) -> Self {
-        self.display_id = Some(display_id);
-        self
-    }
+    // TODO: ulViewConfigSetDisplayId isn't found in the library we use from github, but is found
+    //       in the one from the website. fix that.
+    // /// A user-generated id for the display (monitor, TV, or screen) that this View will be shown on.
+    // ///
+    // /// Animations are driven based on the physical refresh rate of the display. Multiple Views can
+    // /// share the same display.
+    // ///
+    // /// Note: This is automatically managed for you when [`App`][crate::app::App] is used.
+    // ///
+    // /// See also [`Renderer::refresh_display`][crate::renderer::Renderer::refresh_display].
+    // pub fn display_id(mut self, display_id: u32) -> Self {
+    //     self.display_id = Some(display_id);
+    //     self
+    // }
 
     /// Builds the [`ViewConfig`] struct using the settings configured in this builder.
     ///
@@ -328,7 +330,7 @@ impl ViewConfigBuilder {
             ulViewConfigSetFontFamilySansSerif
         );
         set_config_str!(internal, self.user_agent, ulViewConfigSetUserAgent);
-        set_config!(internal, self.display_id, ulViewConfigSetDisplayId);
+        // set_config!(internal, self.display_id, ulViewConfigSetDisplayId);
 
         Some(ViewConfig { internal })
     }
