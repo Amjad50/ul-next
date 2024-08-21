@@ -35,6 +35,8 @@ pub mod surface;
 pub mod view;
 pub mod window;
 
+use std::ffi::CStr;
+
 pub use app::App;
 pub use config::Config;
 pub use gpu_driver::GpuDriver;
@@ -68,5 +70,17 @@ pub fn version() -> Version {
             minor: ul_sys::ulVersionMinor(),
             patch: ul_sys::ulVersionPatch(),
         }
+    }
+}
+
+/// Get the full WebKit version string
+pub fn webkit_version() -> String {
+    unsafe {
+        let cstr_ptr = ul_sys::ulWebKitVersionString();
+        if cstr_ptr.is_null() {
+            return String::new();
+        }
+        let version_cstr = CStr::from_ptr(cstr_ptr);
+        version_cstr.to_string_lossy().into_owned()
     }
 }
