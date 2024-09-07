@@ -3,55 +3,69 @@ fn main() {
     #[cfg(not(feature = "docs_only"))]
     {
         use std::path::PathBuf;
-        use std::process::Command;
         use std::{env, fs};
 
+        const REV: &str = "ae79344";
+
+        fn platform() -> &'static str {
+            let target_os = env::var("CARGO_CFG_TARGET_OS").expect("TARGET_OS not set");
+            let target_arch = env::var("CARGO_CFG_TARGET_ARCH").expect("TARGET_ARCH not set");
+
+            match (target_os.as_str(), target_arch.as_str()) {
+                ("windows", "x86_64") => "win-x64",
+                ("windows", _) => panic!("Only x86_64 is supported on Windows"),
+                ("linux", "x86_64") => "linux-x64",
+                ("linux", "aarch64") => "linux-arm64",
+                ("linux", _) => panic!("Only x86_64 and aarch64 are supported on Linux"),
+                ("macos", "x86_64") => "mac-x64",
+                ("macos", "aarch64") => "mac-arm64",
+                ("macos", _) => panic!("Only x86_64 and aarch64 are supported on MacOS"),
+                (_, _) => panic!("Only Windows, Linux and MacOS are supported"),
+            }
+        }
+
         let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
-        let ultralight_dir = out_dir.join("Ultralight");
+        let sdk_dir = out_dir.join("ul-sdk");
 
         println!("cargo:rerun-if-changed=build.rs");
 
-        if ultralight_dir.is_dir() {
-            fs::remove_dir_all(&ultralight_dir)
-                .expect("Could not remove already existing Ultralight repo");
+        if sdk_dir.is_dir() {
+            fs::remove_dir_all(&sdk_dir).expect("Could not remove already existing ultralight sdk");
         }
+        fs::create_dir_all(&sdk_dir).expect("Could not create ultralight sdk directory");
 
-        let git_status = Command::new("git")
-            .args(["clone", "https://github.com/ultralight-ux/Ultralight"])
-            .current_dir(&out_dir)
-            .status()
-            .expect("Git is needed to retrieve the ultralight C++ library!");
-
-        assert!(git_status.success(), "Couldn't clone Ultralight library");
-
-        let git_status = Command::new("git")
-            .args([
-                "reset",
-                "--hard",
-                "208d653e872b29234bbd4a5fef6dec403f3dfdbd",
-            ])
-            .current_dir(&ultralight_dir)
-            .status()
-            .expect("Git is needed to retrieve the ultralight C++ library!");
-
-        assert!(
-            git_status.success(),
-            "Could not reset git head to desired revision"
+        let sdk_url = format!(
+            "https://ultralight-sdk-dev.sfo2.cdn.digitaloceanspaces.com/ultralight-sdk-{REV}-{}.7z",
+            platform()
         );
 
-        let dst = cmake::build(ultralight_dir.join("packager"));
-        let lib_bin_dir = dst.join("bin");
-        let lib_lib_dir = dst.join("lib");
+        eprintln!("Downloading Ultralight SDK from {}", sdk_url);
+        eprintln!("sdk_dir: {:?}", sdk_dir);
+
+        // use ureq
+        let response = ureq::get(&sdk_url).call();
+        match response {
+            Ok(response) => {
+                let status = response.status();
+                if status == 200 {
+                    let mut tmp_file = fs::File::create(sdk_dir.join("ul-sdk.7z")).unwrap();
+                    std::io::copy(&mut response.into_reader(), &mut tmp_file).unwrap();
+                    sevenz_rust::decompress_file(sdk_dir.join("ul-sdk.7z"), &sdk_dir).unwrap();
+                } else {
+                    panic!("Could not download Ultralight SDK, status code: {}", status);
+                }
+            }
+            Err(err) => {
+                panic!("Could not download Ultralight SDK: {}", err);
+            }
+        }
+
+        let bin_dir = sdk_dir.join("bin");
+        let lib_dir = sdk_dir.join("lib");
 
         if cfg!(feature = "only-ul-deps") {
-            let allowed_files = [
-                "Ultralight",
-                "UltralightCore",
-                "WebCore",
-                "AppCore",
-                "gstreamer-full-1.0",
-            ];
-            for entry in fs::read_dir(&lib_bin_dir).unwrap().flatten() {
+            let allowed_files = ["Ultralight", "UltralightCore", "WebCore", "AppCore"];
+            for entry in fs::read_dir(&bin_dir).unwrap().flatten() {
                 let path = entry.path();
 
                 let mut allowed = false;
@@ -76,9 +90,9 @@ fn main() {
             }
         }
 
-        println!("cargo:rustc-link-search=native={}", lib_bin_dir.display());
-        // for windows only
-        println!("cargo:rustc-link-search=native={}", lib_lib_dir.display());
+        println!("cargo:rustc-link-search=native={}", bin_dir.display());
+        // // for windows only
+        println!("cargo:rustc-link-search=native={}", lib_dir.display());
 
         println!("cargo:rustc-link-lib=dylib=Ultralight");
         println!("cargo:rustc-link-lib=dylib=WebCore");

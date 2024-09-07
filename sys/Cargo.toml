@@ -17,7 +17,8 @@ docs_only = []
 only-ul-deps = []
 
 [build-dependencies]
-cmake = "0.1"
+sevenz-rust = "0.6.1"
+ureq = "2.10.1"
 
 [dependencies]
 
