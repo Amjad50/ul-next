@@ -40,13 +40,9 @@ jobs:
         run: sudo apt update -y && sudo apt install -y cmake
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: 1.60.0
       - uses: actions/checkout@v3
         with:
           submodules: 'true'
-      - name: Install or use cached `cargo-msrv`
-        uses: baptiste0928/cargo-install@v2
-        with:
-          crate: cargo-msrv
       - name: Verify Minimum Rust Version
-        run: cargo-msrv verify
+        run: cargo check
