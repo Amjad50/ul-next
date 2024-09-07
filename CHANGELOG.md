@@ -5,7 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] (based on `1.4.0b.158d65c`)
+## [Unreleased]
+
+## [0.4.0] (based on `1.4.0b.158d65c`)
 ### Added
 - `ImageSource` API for loading textures and custom bitmaps as html images.
 - More types of `view::ConsoleMessageSource` supported by the latest `ultralight` version.
@@ -32,7 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added examples for the library.
 - Added implementation for `glium` driver using OpenGL.
 
-[unreleased]: https://github.com/Amjad50/ul-next/compare/v0.3.0...HEAD
+[unreleased]: https://github.com/Amjad50/ul-next/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/Amjad50/ul-next/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Amjad50/ul-next/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Amjad50/ul-next/compare/v0.1.4...v0.2.0
 [0.1.4]: https://github.com/Amjad50/ul-next/compare/f937902...v0.1.4

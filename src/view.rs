@@ -58,6 +58,7 @@ impl From<ul_sys::ULRenderTarget> for RenderTarget {
 
 /// Console message source types (See [`View::set_add_console_message_callback`])
 #[derive(Clone, Copy, Debug)]
+#[non_exhaustive]
 pub enum ConsoleMessageSource {
     XML = ul_sys::ULMessageSource_kMessageSource_XML as isize,
     JS = ul_sys::ULMessageSource_kMessageSource_JS as isize,
