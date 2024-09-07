@@ -69,6 +69,13 @@ pub enum ConsoleMessageSource {
     CSS = ul_sys::ULMessageSource_kMessageSource_CSS as isize,
     Security = ul_sys::ULMessageSource_kMessageSource_Security as isize,
     ContentBlocker = ul_sys::ULMessageSource_kMessageSource_ContentBlocker as isize,
+    Media = ul_sys::ULMessageSource_kMessageSource_Media as isize,
+    MediaSource = ul_sys::ULMessageSource_kMessageSource_MediaSource as isize,
+    WebRTC = ul_sys::ULMessageSource_kMessageSource_WebRTC as isize,
+    ITPDebug = ul_sys::ULMessageSource_kMessageSource_ITPDebug as isize,
+    PrivateClickMeasurement =
+        ul_sys::ULMessageSource_kMessageSource_PrivateClickMeasurement as isize,
+    PaymentRequest = ul_sys::ULMessageSource_kMessageSource_PaymentRequest as isize,
     Other = ul_sys::ULMessageSource_kMessageSource_Other as isize,
 }
 

@@ -12,6 +12,7 @@ pub enum KeyEventType {
     RawKeyDown = ul_sys::ULKeyEventType_kKeyEventType_RawKeyDown as isize,
 
     /// Key-Down event type. (Does not trigger accelerator commands in WebCore)
+    /// (eg, Ctrl+C for copy is an accelerator command).
     ///
     /// You should probably use `RawKeyDown` instead when a physical key is pressed.
     /// This type is only here for historic compatibility with WebCore's key event types.

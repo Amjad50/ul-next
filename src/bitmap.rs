@@ -128,6 +128,10 @@ impl Bitmap {
         })
     }
 
+    pub(crate) unsafe fn to_ul(&self) -> ul_sys::ULBitmap {
+        self.internal
+    }
+
     /// Create an empty Bitmap. No pixels will be allocated.
     pub fn create_empty() -> BitmapResult<Self> {
         let internal = unsafe { ul_sys::ulCreateEmptyBitmap() };
