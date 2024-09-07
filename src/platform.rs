@@ -17,6 +17,7 @@ lazy_static::lazy_static! {
     static ref LOGGER: Mutex<Option<Box<dyn Logger + Send>>> = Mutex::new(None);
     static ref CLIPBOARD: Mutex<Option<Box<dyn Clipboard + Send>>> = Mutex::new(None);
     static ref FILESYSTEM: Mutex<Option<Box<dyn FileSystem + Send>>> = Mutex::new(None);
+    static ref FONTLOADER: Mutex<Option<Box<dyn FontLoader + Send>>> = Mutex::new(None);
     pub(crate) static ref GPUDRIVER: Mutex<Option<Box<dyn GpuDriver + Send>>> = Mutex::new(None);
 }
 
@@ -122,6 +123,106 @@ pub trait FileSystem {
     fn open_file(&mut self, path: &str) -> Option<Vec<u8>>;
 }
 
+/// Represents a font file, either on-disk path or in-memory file contents.
+pub struct FontFile {
+    internal: ul_sys::ULFontFile,
+}
+
+impl FontFile {
+    // TODO: support buffers
+    // pub fn from_buffer(...) -> Option<Self> {
+    //}
+
+    /// Create a font file from an on-disk file path.
+    ///
+    /// The file path should already exist.
+    pub fn from_path<P: AsRef<Path>>(path: P) -> Option<Self> {
+        unsafe {
+            let path = UlString::from_str(path.as_ref().to_str().unwrap()).unwrap();
+
+            let internal = ul_sys::ulFontFileCreateFromFilePath(path.to_ul());
+            if internal.is_null() {
+                return None;
+            }
+            Some(FontFile { internal })
+        }
+    }
+
+    pub(crate) fn to_ul(&self) -> ul_sys::ULFontFile {
+        self.internal
+    }
+}
+
+impl Drop for FontFile {
+    fn drop(&mut self) {
+        unsafe {
+            ul_sys::ulDestroyFontFile(self.internal);
+        }
+    }
+}
+
+/// User-defined font loader interface.
+///
+/// The library uses this to load all system fonts.
+///
+/// Every operating system has its own library of installed system fonts. The FontLoader interface
+/// is used to lookup these fonts and fetch the actual font data (raw TTF/OTF file data) for a given
+/// given font description.
+///
+/// ## Usage
+///
+/// To provide your own custom FontLoader implementation, you should implement this trait, and then
+/// pass an instance of your struct to [`platform::set_fontloader`]. before calling [`Renderer::create`]
+/// or [`App::new`].
+///
+/// ## Note
+///
+/// AppCore uses a default OS-specific FontLoader implementation when you call [`App::new`].
+///
+/// If you are using [`Renderer::create`], you can still use AppCore's implementation by calling
+/// [`platform::enable_platform_fontloader`][enable_platform_fontloader].
+///
+///
+/// [`App::new`]: crate::app::App::new
+/// [`Renderer::create`]: crate::renderer::Renderer::create
+/// [`platform::set_fontloader`]: set_fontloader
+pub trait FontLoader {
+    /// Fallback font family name. Will be used if all other fonts fail to load.
+    ///
+    /// This font should be guaranteed to exist (eg, ULFontLoader::load should not fail when
+    /// when passed this font family name).
+    ///
+    /// Return a font family name.
+    fn get_fallback_font(&mut self) -> String;
+
+    /// Fallback font family name that can render the specified characters. This is mainly used to
+    /// support CJK (Chinese, Japanese, Korean) text display
+    ///
+    /// # Arguments
+    /// * `characters` - One or more UTF-16 characters. This is almost always a single character
+    /// * `weight` - Font weight
+    /// * `italic` - Whether or not the font should be italic
+    ///
+    /// Should return a font family name that can render the text
+    fn get_fallback_font_for_characters(
+        &mut self,
+        characters: &str,
+        weight: i32,
+        italic: bool,
+    ) -> String;
+
+    /// Get the actual font file data (TTF/OTF) for a given font description.
+    ///
+    /// # Arguments
+    /// * `family` - Font family name
+    /// * `weight` - Font weight
+    /// * `italic` - Whether or not the font should be italic
+    ///
+    /// Should return a [`FontFile`] that contains the font data. You can return `None`
+    /// here and the loader will fallback to another font.
+    fn load(&mut self, family: &str, weight: i32, italic: bool) -> Option<FontFile>;
+}
+
 platform_set_interface_macro! {
     /// Set a custom Logger implementation.
     ///
@@ -180,14 +281,14 @@ platform_set_interface_macro! {
 platform_set_interface_macro! {
     /// Set a custom FileSystem implementation.
     ///
-    /// This is used for loading File URLs (eg, <file:///page.html>). If
-    /// you don't call this, and are not using [`App::new`] or
-    /// [`enable_platform_filesystem`], you will not be able to load any File
-    /// URLs.
+    /// The library uses this to load all file URLs (eg, <file:///page.html>).
+    ///
+    /// You can provide the library with your own FileSystem implementation
+    /// so that file assets are loaded from your own pipeline.
     ///
     /// You should call this before [`Renderer::create`] or [`App::new`].
     ///
-    /// [`App::new`] will use the default platform file system if you never call this.
+    /// Note: [`App::new`] will use the default platform file system if you never call this.
     ///
     /// If you're not using [`App::new`], (eg, using [`Renderer::create`]) you
     /// can still use the default platform file system by calling
@@ -220,6 +321,57 @@ platform_set_interface_macro! {
             if let Some(result) = result {
                 ul_sys::ulCreateBufferFromCopy(result.as_ptr() as _, result.len())
             } else{
+                std::ptr::null_mut()
+            }
+        }
+    }
+}
+
+platform_set_interface_macro! {
+    /// Set a custom FontLoader implementation.
+    ///
+    /// The library uses this to load all system fonts.
+    ///
+    /// Every operating system has its own library of installed system fonts. The FontLoader interface
+    /// is used to lookup these fonts and fetch the actual font data (raw TTF/OTF file data) for a given
+    /// given font description.
+    ///
+    /// You should call this before [`Renderer::create`] or [`App::new`].
+    ///
+    /// Note: [`App::new`] will use the default platform font loader if you never call this.
+    ///
+    /// [`App::new`]: crate::app::App::new
+    /// [`Renderer::create`]: crate::renderer::Renderer::create
+    pub set_fontloader<FontLoader>(font_loader -> FONTLOADER) -> ulPlatformSetFontLoader(ULFontLoader) {
+        // TODO: handle errors
+        get_fallback_font(() -> ul_sys::ULString) -> (() -> result: String) {
+            // no need to preprocess since we're returning a string
+        } {
+            UlString::from_str_unmanaged(&result).unwrap()
+        }
+
+        get_fallback_font_for_characters(
+            (ul_characters: ul_sys::ULString, weight: i32, italic: bool) -> ul_sys::ULString) ->
+            ((characters: &str, weight: i32, italic: bool) -> result: String)
+        {
+            let characters = UlString::copy_raw_to_string(ul_characters).unwrap();
+            let characters = &characters;
+        } {
+            UlString::from_str_unmanaged(&result).unwrap()
+        }
+
+        load((ul_family: ul_sys::ULString, weight: i32, italic: bool) -> ul_sys::ULFontFile) ->
+            ((family: &str, weight: i32, italic: bool) -> result: Option<FontFile>)
+        {
+            let family = UlString::copy_raw_to_string(ul_family).unwrap();
+            let family = &family;
+        } {
+            if let Some(result) = result {
+                let r = result.to_ul();
+                // Assuming Ultralight will take ownership of this
+                core::mem::forget(result);
+                r
+            } else {
                 std::ptr::null_mut()
             }
         }

@@ -2,14 +2,17 @@
 //! network requests, and event dispatch
 //!
 //! [`Renderer`] should be used when you want to access GPU internals and textures
-//! to integerate with your own rendering pipeline.
+//! to integrate with your own rendering pipeline.
 //!
 //! Before creating a renderer [`Renderer::create`] you must supply a custom
 //! [`GpuDriver`](crate::gpu_driver::GpuDriver) in
 //! [`platform::set_gpu_driver`](crate::platform::set_gpu_driver).
+use std::ffi::CString;
+
 use crate::{
     config::Config,
     error::CreationError,
+    event::{GamepadAxisEvent, GamepadButtonEvent, GamepadEvent},
     string::UlString,
     view::{View, ViewConfig},
 };
@@ -159,7 +162,7 @@ impl Renderer {
     ///
     /// You should only call this once per process lifetime.
     ///
-    /// You shoud set up your platform handlers (eg,
+    /// You must set up your platform handlers (eg,
     /// [`platform::set_gpu_driver`](crate::platform::set_gpu_driver),
     /// [`platform::set_logger`](crate::platform::set_logger),
     /// [`platform::enable_default_logger`](crate::platform::enable_default_logger),
@@ -228,10 +231,10 @@ impl Renderer {
     ///
     /// # Arguments
     /// * `is_persistent` - Whether or not to store the session on disk.
-    /// Persistent sessions will be written to the path set in
-    /// [`ConfigBuilder::cache_path`](crate::config::ConfigBuilder::cache_path).
+    ///   Persistent sessions will be written to the path set in
+    ///   [`ConfigBuilder::cache_path`](crate::config::ConfigBuilder::cache_path).
     /// * `name` -  A unique name for this session, this will be used to
-    /// generate a unique disk path for persistent sessions.
+    ///   generate a unique disk path for persistent sessions.
     pub fn create_session(
         &self,
         is_persistent: bool,
@@ -253,7 +256,7 @@ impl Renderer {
     /// * `height` - The initial height, in pixels.
     /// * `config` - The configuration for the view.
     /// * `session` - The session to store local data in. Passing [`None`] will
-    /// use the default session.
+    ///   use the default session.
     pub fn create_view(
         &self,
         width: u32,
@@ -262,6 +265,104 @@ impl Renderer {
         session: Option<&Session>,
     ) -> Option<View> {
         unsafe { View::create(self.internal, width, height, view_config, session) }
+    }
+
+    /// Start the remote inspector server.
+    ///
+    /// While the remote inspector is active, Views that are loaded into this renderer
+    /// will be able to be remotely inspected from another Ultralight instance either locally
+    /// (another app on same machine) or remotely (over the network) by navigating a View to:
+    /// ```txt
+    ///  inspector://<address>:<port>
+    /// ```
+    ///
+    /// Returns `true` if the server was started successfully, `false` otherwise.
+    pub fn start_remote_inspector_server(
+        &self,
+        address: &str,
+        port: u16,
+    ) -> Result<bool, CreationError> {
+        unsafe {
+            let c_str = CString::new(address)?;
+            Ok(ul_sys::ulStartRemoteInspectorServer(
+                self.internal,
+                c_str.as_ptr(),
+                port,
+            ))
+        }
+    }
+
+    /// Notify the renderer that a display has refreshed (you should call this after vsync).
+    ///
+    /// This updates animations, smooth scroll, and `window.requestAnimationFrame()` for all Views
+    /// matching the display id.
+    pub fn refresh_display(&self, display_id: u32) {
+        unsafe { ul_sys::ulRefreshDisplay(self.internal, display_id) }
+    }
+
+    /// Describe the details of a gamepad, to be used with FireGamepadEvent and related
+    /// events below. This can be called multiple times with the same index if the details change.
+    ///
+    /// # Arguments
+    /// * `index` - The unique index (or "connection slot") of the gamepad. For example,
+    ///   controller #1 would be "1", controller #2 would be "2" and so on.
+    /// * `id` - A string ID representing the device, this will be made available
+    ///   in JavaScript as gamepad.id
+    /// * `axis_count` - The number of axes on the device.
+    /// * `button_count` - The number of buttons on the device
+    pub fn set_gamepad_details(
+        &self,
+        index: u32,
+        id: &str,
+        axis_count: u32,
+        button_count: u32,
+    ) -> Result<(), CreationError> {
+        unsafe {
+            let ul_string_id = UlString::from_str(id)?;
+
+            ul_sys::ulSetGamepadDetails(
+                self.internal,
+                index,
+                ul_string_id.to_ul(),
+                axis_count,
+                button_count,
+            );
+        }
+        Ok(())
+    }
+
+    /// Fire a gamepad event (connection / disconnection).
+    ///
+    /// Note:  The gamepad should first be described via [`set_gamepad_details`][Self::set_gamepad_details] before calling this
+    ///        function.
+    ///
+    /// See <https://developer.mozilla.org/en-US/docs/Web/API/Gamepad>
+    pub fn fire_gamepad_event(&self, event: GamepadEvent) -> Result<(), CreationError> {
+        unsafe { ul_sys::ulFireGamepadEvent(self.internal, event.to_ul()) };
+        Ok(())
+    }
+
+    /// Fire a gamepad axis event (to be called when an axis value is changed).
+    ///
+    /// Note:  The gamepad should be connected via a call to [`fire_gamepad_event`][Self::fire_gamepad_event] before calling this function.
+    ///
+    /// See <https://developer.mozilla.org/en-US/docs/Web/API/Gamepad/axes>
+    pub fn fire_gamepad_axis_event(&self, event: GamepadAxisEvent) -> Result<(), CreationError> {
+        unsafe { ul_sys::ulFireGamepadAxisEvent(self.internal, event.to_ul()) };
+        Ok(())
+    }
+
+    /// Fire a gamepad button event (to be called when a button value is changed).
+    ///
+    /// Note:  The gamepad should be connected via a call to [`fire_gamepad_event`][Self::fire_gamepad_event] before calling this function.
+    ///
+    /// See <https://developer.mozilla.org/en-US/docs/Web/API/Gamepad/axes>
+    pub fn fire_gamepad_button_event(
+        &self,
+        event: GamepadButtonEvent,
+    ) -> Result<(), CreationError> {
+        unsafe { ul_sys::ulFireGamepadButtonEvent(self.internal, event.to_ul()) };
+        Ok(())
     }
 }
 

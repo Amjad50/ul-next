@@ -5,11 +5,11 @@
 //!
 //! There are two options to use the library:
 //! - Using the [`App`] struct, which is a managed application that allows
-//! to create [`Window`]s that can contain multiple [`Overlay`]s, you can
-//! control the position and size of the [`Overlay`]s, and the inner [`View`]s.
+//!   to create [`Window`]s that can contain multiple [`Overlay`]s, you can
+//!   control the position and size of the [`Overlay`]s, and the inner [`View`]s.
 //! - The other option is using the [`Renderer`] directly, in that case, if you
-//! want to have GPU rendering in your application you need to supply a custom
-//! [`GpuDriver`] in [`platform::set_gpu_driver`].
+//!   want to have GPU rendering in your application you need to supply a custom
+//!   [`GpuDriver`] in [`platform::set_gpu_driver`].
 //!
 //! This library also contain a custom [`glium`](crate::gpu_driver::glium)
 //! [`GpuDriver`] implementation that can be used for easier integration.
@@ -34,6 +34,8 @@ pub(crate) mod string;
 pub mod surface;
 pub mod view;
 pub mod window;
+
+use std::ffi::CStr;
 
 pub use app::App;
 pub use config::Config;
@@ -68,5 +70,17 @@ pub fn version() -> Version {
             minor: ul_sys::ulVersionMinor(),
             patch: ul_sys::ulVersionPatch(),
         }
+    }
+}
+
+/// Get the full WebKit version string
+pub fn webkit_version() -> String {
+    unsafe {
+        let cstr_ptr = ul_sys::ulWebKitVersionString();
+        if cstr_ptr.is_null() {
+            return String::new();
+        }
+        let version_cstr = CStr::from_ptr(cstr_ptr);
+        version_cstr.to_string_lossy().into_owned()
     }
 }

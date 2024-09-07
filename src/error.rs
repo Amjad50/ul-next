@@ -15,4 +15,7 @@ pub enum CreationError {
     /// valid Rust string.
     #[error("Failed to convert an ultralight string to Rust string")]
     RustStringCreationError(#[from] FromUtf8Error),
+    /// `&str` contained a null byte, and couldn't convert it to a valid C string without losing data.
+    #[error("Failed to convert a rust `&str` to a C string")]
+    CStringCreationError(#[from] std::ffi::NulError),
 }

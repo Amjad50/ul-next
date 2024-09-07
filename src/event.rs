@@ -260,3 +260,142 @@ impl Drop for ScrollEvent {
         }
     }
 }
+
+#[derive(Clone, Copy)]
+/// The type of the [`GamepadEvent`].
+pub enum GamepadEventType {
+    /// This event type should be fired when a gamepad is connected
+    ///
+    /// Note: You will need to previously declare the gamepad, its index, and details about
+    ///  its axis and button layout via [`Renderer::set_gamepad_details`][crate::renderer::Renderer::set_gamepad_details]
+    ///  prior to calling [`Renderer::fire_gamepad_event`][crate::renderer::Renderer::fire_gamepad_event].
+    Connected = ul_sys::ULGamepadEventType_kGamepadEventType_Connected as isize,
+    /// This event type should be fired when a gamepad is disconnected.
+    Disconnected = ul_sys::ULGamepadEventType_kGamepadEventType_Disconnected as isize,
+}
+
+/// Event representing a change in gamepad connection state
+///
+/// See [`Renderer::fire_gamepad_event`][crate::renderer::Renderer::fire_gamepad_event].
+pub struct GamepadEvent {
+    internal: ul_sys::ULGamepadEvent,
+}
+
+impl GamepadEvent {
+    /// Create a new `GamepadEvent`.
+    ///
+    /// # Arguments
+    /// * `index` - The index of the gamepad, this should match the value previously set in
+    ///   [`Renderer::set_gamepad_details`][crate::renderer::Renderer::set_gamepad_details].
+    /// * `ty` - The type of this GamepadEvent.
+    pub fn new(index: u32, ty: GamepadEventType) -> Result<GamepadEvent, CreationError> {
+        let internal = unsafe { ul_sys::ulCreateGamepadEvent(index, ty as u32) };
+
+        if internal.is_null() {
+            Err(CreationError::NullReference)
+        } else {
+            Ok(Self { internal })
+        }
+    }
+
+    /// Returns the underlying [`ul_sys::ULGamepadEvent`] struct, to be used locally for
+    /// calling the underlying C API.
+    pub(crate) unsafe fn to_ul(&self) -> ul_sys::ULGamepadEvent {
+        self.internal
+    }
+}
+
+impl Drop for GamepadEvent {
+    fn drop(&mut self) {
+        unsafe {
+            ul_sys::ulDestroyGamepadEvent(self.internal);
+        }
+    }
+}
+
+/// Event representing a change in gamepad axis state (eg, pressing a stick in a certain direction).
+///
+/// See [`Renderer::fire_gamepad_axis_event`][crate::renderer::Renderer::fire_gamepad_axis_event].
+pub struct GamepadAxisEvent {
+    internal: ul_sys::ULGamepadAxisEvent,
+}
+
+impl GamepadAxisEvent {
+    /// Create a new `GamepadAxisEvent`.
+    ///
+    /// # Arguments
+    /// * `index` - The index of the gamepad, this should match the value previously set in
+    ///   [`Renderer::set_gamepad_details`][crate::renderer::Renderer::set_gamepad_details].
+    /// * `axis_index` - The index of the axis whose value has changed.
+    ///   This value should be in the range previously set in [`Renderer::set_gamepad_details`][crate::renderer::Renderer::set_gamepad_details].
+    /// * `value` - The new value of the axis. This value should be normalized to the range [-1.0, 1.0].
+    pub fn new(index: u32, axis_index: u32, value: f64) -> Result<GamepadAxisEvent, CreationError> {
+        let internal = unsafe { ul_sys::ulCreateGamepadAxisEvent(index, axis_index, value) };
+
+        if internal.is_null() {
+            Err(CreationError::NullReference)
+        } else {
+            Ok(Self { internal })
+        }
+    }
+
+    /// Returns the underlying [`ul_sys::ULGamepadAxisEvent`] struct, to be used locally for
+    /// calling the underlying C API.
+    pub(crate) unsafe fn to_ul(&self) -> ul_sys::ULGamepadAxisEvent {
+        self.internal
+    }
+}
+
+impl Drop for GamepadAxisEvent {
+    fn drop(&mut self) {
+        unsafe {
+            ul_sys::ulDestroyGamepadAxisEvent(self.internal);
+        }
+    }
+}
+
+/// Event representing a change in gamepad button state (eg, pressing a button on a gamepad).
+///
+/// See [`Renderer::fire_gamepad_button_event`][crate::renderer::Renderer::fire_gamepad_button_event].
+pub struct GamepadButtonEvent {
+    internal: ul_sys::ULGamepadButtonEvent,
+}
+
+impl GamepadButtonEvent {
+    /// Create a new `GamepadButtonEvent`.
+    ///
+    /// # Arguments
+    /// * `index` - The index of the gamepad, this should match the value previously set in
+    ///   [`Renderer::set_gamepad_details`][crate::renderer::Renderer::set_gamepad_details].
+    /// * `button_index` - The index of the button whose value has changed.
+    ///   This value should be in the range previously set in [`Renderer::set_gamepad_details`][crate::renderer::Renderer::set_gamepad_details].
+    /// * `value` - The new value of the axis. This value should be normalized to the range [-1.0, 1.0].
+    ///   with any value greater than 0.0 to be considered "pressed".
+    pub fn new(
+        index: u32,
+        button_index: u32,
+        value: f64,
+    ) -> Result<GamepadButtonEvent, CreationError> {
+        let internal = unsafe { ul_sys::ulCreateGamepadButtonEvent(index, button_index, value) };
+
+        if internal.is_null() {
+            Err(CreationError::NullReference)
+        } else {
+            Ok(Self { internal })
+        }
+    }
+
+    /// Returns the underlying [`ul_sys::ULGamepadButtonEvent`] struct, to be used locally for
+    /// calling the underlying C API.
+    pub(crate) unsafe fn to_ul(&self) -> ul_sys::ULGamepadButtonEvent {
+        self.internal
+    }
+}
+
+impl Drop for GamepadButtonEvent {
+    fn drop(&mut self) {
+        unsafe {
+            ul_sys::ulDestroyGamepadButtonEvent(self.internal);
+        }
+    }
+}
