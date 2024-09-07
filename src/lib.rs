@@ -25,6 +25,7 @@ pub mod config;
 pub mod error;
 pub mod event;
 pub mod gpu_driver;
+pub mod image_source;
 pub mod key_code;
 pub mod overlay;
 pub mod platform;
