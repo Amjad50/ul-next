@@ -5,7 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [Unreleased] (based on `1.4.0b.158d65c`)
+### Added
+- `ImageSource` API for loading textures and custom bitmaps as html images.
+- More types of `view::ConsoleMessageSource` supported by the latest `ultralight` version.
 
 ## [0.3.0] (based on `1.4.0-beta.ae79344`) - 2024-09-07
 ### Added
