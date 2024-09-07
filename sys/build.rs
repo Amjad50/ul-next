@@ -5,7 +5,7 @@ fn main() {
         use std::path::PathBuf;
         use std::{env, fs};
 
-        const REV: &str = "ae79344";
+        const REV: &str = "158d65c";
 
         fn platform() -> &'static str {
             let target_os = env::var("CARGO_CFG_TARGET_OS").expect("TARGET_OS not set");
