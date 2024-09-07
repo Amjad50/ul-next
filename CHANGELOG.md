@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] (based on `1.4.0-beta.ae79344`) - 2024-09-07
+### Added
+- `View::create_local_inspector_view` to create a local inspector view.
+- `display_id` functionalities to `View`.
+- `Gamepad` events.
+- `Renderer::start_remote_inspector_server` for starting a remote inspector server.
+- Custom `FontLoader` support.
+
+
 ## [0.2.0] - 2024-02-06
 ### Changed
 - Updated `glium` to `0.34`
@@ -20,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added examples for the library.
 - Added implementation for `glium` driver using OpenGL.
 
-[unreleased]: https://github.com/Amjad50/ul-next/compare/v0.2.0...HEAD
+[unreleased]: https://github.com/Amjad50/ul-next/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/Amjad50/ul-next/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Amjad50/ul-next/compare/v0.1.4...v0.2.0
 [0.1.4]: https://github.com/Amjad50/ul-next/compare/f937902...v0.1.4
