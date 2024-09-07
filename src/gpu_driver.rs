@@ -262,6 +262,12 @@ impl TryFrom<ul_sys::ULGPUState> for GpuState {
 
 #[derive(Debug, Clone)]
 /// The GPU command to be executed.
+///
+/// This describes a command to be executed on the GPU.
+///
+/// Commands are dispatched to the GPU driver asynchronously via
+/// [`update_command_list`][GpuDriver::update_command_list],
+/// the GPU driver should consume these commands and execute them at an appropriate time.
 pub enum GpuCommand {
     /// Clear a specific render buffer, to be prepared for drawing.
     ClearRenderBuffer {
@@ -316,10 +322,20 @@ impl TryFrom<ul_sys::ULCommand> for GpuCommand {
 /// (See [`platform::set_gpu_driver`](crate::platform::set_gpu_driver)).
 pub trait GpuDriver {
     /// Called before any commands are dispatched during a frame.
+    ///
+    /// Called before any state is updated during a call to
+    /// [`Renderer::render`](crate::renderer::Renderer::render).
+    /// This is a good time to prepare the GPU for any state updates.
     fn begin_synchronize(&mut self);
     /// Called after any commands are dispatched during a frame.
+    ///
+    /// Called after all state has been updated during a call to
+    /// [`Renderer::render`](crate::renderer::Renderer::render).
     fn end_synchronize(&mut self);
-    /// Get the next available texture ID. **DO NOT return `0`**.
+    /// Get the next available texture ID. **DO NOT return `0` (reserved)**.
+    ///
+    /// This is used to generate a unique texture ID for each texture created by the library.
+    /// The GPU driver implementation is responsible for mapping these IDs to a native ID.
     fn next_texture_id(&mut self) -> u32;
     /// Create a texture with a certain ID and optional bitmap.
     ///
@@ -334,7 +350,7 @@ pub trait GpuDriver {
     fn update_texture(&mut self, texture_id: u32, bitmap: OwnedBitmap);
     /// Destroy a texture.
     fn destroy_texture(&mut self, texture_id: u32);
-    /// Generate the next available render buffer ID. **DO NOT return `0`**.
+    /// Generate the next available render buffer ID. **DO NOT return `0` (reserved)**.
     fn next_render_buffer_id(&mut self) -> u32;
     /// Create a render buffer with certain ID and buffer description.
     fn create_render_buffer(&mut self, render_buffer_id: u32, render_buffer: RenderBuffer);
