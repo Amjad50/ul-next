@@ -58,4 +58,4 @@ This project uses the `ULTRALIGHT FREE LICENSE AGREEMENT - V1`. See [LICENSE](./
 [`rust-ul`]: https://github.com/psychonautwiki/rust-ul
 [`ultralight`]: https://github.com/VZout/ultralight
 [Ultralight]: https://ultralig.ht
-[Ultralight SDK]: https://github.com/ultralight-ux/Ultralight/releases/latest
+[Ultralight SDK]: https://ultralig.ht/download/
