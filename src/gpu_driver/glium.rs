@@ -518,6 +518,7 @@ impl GliumGpuDriverReceiver {
         } else {
             // since its not empty, it should have a valid pixels.
             let bitmap_pixels = bitmap.pixels().unwrap();
+
             match bitmap.format() {
                 BitmapFormat::A8Unorm => {
                     let img = RawImage2d {
@@ -537,8 +538,26 @@ impl GliumGpuDriverReceiver {
                     .map(EitherTexture::Regular2d)
                 }
                 BitmapFormat::Bgra8UnormSrgb => {
+                    // FIXME: the number of pixels sometimes may not be `width * height * 4`
+                    // because the bitmap will have padding for each row.
+                    // Normally, this is fixable by using `UNPACK_ROW_LENGTH` in OpenGL,
+                    // but glium doesn't support it for now
+
+                    let expected_row_bytes = bitmap.width() * 4;
+                    let data = if bitmap.row_bytes() != expected_row_bytes {
+                        let mut new_data = Vec::with_capacity(
+                            bitmap.height() as usize * expected_row_bytes as usize,
+                        );
+                        for row in bitmap_pixels.chunks(bitmap.row_bytes() as usize) {
+                            new_data.extend_from_slice(&row[..expected_row_bytes as usize]);
+                        }
+                        Cow::Owned(new_data)
+                    } else {
+                        Cow::Borrowed(bitmap_pixels)
+                    };
+
                     let img = RawImage2d {
-                        data: Cow::Borrowed(bitmap_pixels),
+                        data,
                         width: bitmap.width(),
                         height: bitmap.height(),
                         format: ClientFormat::U8U8U8U8,
