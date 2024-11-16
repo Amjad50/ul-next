@@ -1,9 +1,12 @@
 use glium::implement_vertex;
 use glium::{index::PrimitiveType, program::ProgramCreationInput, Program};
 use glium::{uniform, Surface};
+use ul_next::Library;
 use ul_next::{config::Config, platform, renderer::Renderer, view::ViewConfig};
 
 fn main() {
+    let lib = Library::linked();
+
     let event_loop = winit::event_loop::EventLoopBuilder::new().build().unwrap();
 
     let (_window, display) = glium::backend::glutin::SimpleWindowBuilder::new()
@@ -11,24 +14,24 @@ fn main() {
         .with_inner_size(900, 600)
         .build(&event_loop);
 
-    let config = Config::start().build().unwrap();
+    let config = Config::start().build(lib.clone()).unwrap();
 
     // basic setup (check `render_to_png` for full explanation)
-    platform::enable_platform_fontloader();
-    platform::enable_platform_filesystem("./examples").unwrap();
-    platform::enable_default_logger("./log.log").unwrap();
+    platform::enable_platform_fontloader(lib.clone());
+    platform::enable_platform_filesystem(lib.clone(), "./examples").unwrap();
+    platform::enable_default_logger(lib.clone(), "./log.log").unwrap();
 
     // use `glium` gpu driver, which is included in the library under the
     // feature `glium`
     let (sender, mut receiver) = ul_next::gpu_driver::glium::create_gpu_driver(&display).unwrap();
-    platform::set_gpu_driver(sender);
+    platform::set_gpu_driver(lib.clone(), sender);
 
     let renderer = Renderer::create(config).unwrap();
 
     let view_config = ViewConfig::start()
         .initial_device_scale(1.0)
         .is_accelerated(true)
-        .build()
+        .build(lib.clone())
         .unwrap();
 
     let view = renderer.create_view(900, 600, &view_config, None).unwrap();

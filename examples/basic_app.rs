@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use ul_next::{app::App, platform, window::WindowFlags};
+use ul_next::{app::App, platform, window::WindowFlags, Library};
 
 /// This example is ported from the `Ultralight` main repository.
 
@@ -18,12 +18,14 @@ use ul_next::{app::App, platform, window::WindowFlags};
 ///
 /// We will create the simplest possible AppCore application in this sample.
 fn main() {
+    let lib = Library::linked();
+
     // set the origin file system, require `resources` folder, which can be
     // obtained from `Ultralight sdk`
-    platform::enable_platform_filesystem("./examples").unwrap();
+    platform::enable_platform_filesystem(lib.clone(), "./examples").unwrap();
 
     // use default settings and configs
-    let app = App::new(None, None).unwrap();
+    let app = App::new(lib.clone(), None, None).unwrap();
 
     // Create our Window.
     //
