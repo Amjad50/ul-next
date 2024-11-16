@@ -7,13 +7,19 @@
 //! have access to the textures to integrate into your game/application, check
 //! [`Renderer`] where you can implement your own
 //! [`GpuDriver`](crate::gpu_driver::GpuDriver) and integrate it with your project.
-use crate::config::Config;
-use crate::error::CreationError;
-use crate::renderer::Renderer;
-use crate::window::{Window, WindowFlags};
+use std::sync::Arc;
+
+use crate::{
+    config::Config,
+    error::CreationError,
+    renderer::Renderer,
+    window::{Window, WindowFlags},
+    Library,
+};
 
 /// Settings specific for the [`App`].
 pub struct Settings {
+    lib: Arc<Library>,
     internal: ul_sys::ULSettings,
 }
 
@@ -34,7 +40,7 @@ impl Settings {
 impl Drop for Settings {
     fn drop(&mut self) {
         unsafe {
-            ul_sys::ulDestroySettings(self.internal);
+            self.lib.appcore().ulDestroySettings(self.internal);
         }
     }
 }
@@ -103,37 +109,46 @@ impl SettingsBuilder {
     /// Builds the [`Settings`] struct using the settings configured in this builder.
     ///
     /// Return [`None`] if failed to create [`Settings`].
-    pub fn build(self) -> Option<Settings> {
-        let internal = unsafe { ul_sys::ulCreateSettings() };
+    pub fn build(self, lib: Arc<Library>) -> Option<Settings> {
+        let internal = unsafe { lib.appcore().ulCreateSettings() };
 
         if internal.is_null() {
             return None;
         }
 
-        set_config_str!(internal, self.developer_name, ulSettingsSetDeveloperName);
+        set_config_str!(
+            internal,
+            self.developer_name,
+            lib.appcore().ulSettingsSetDeveloperName
+        );
 
-        set_config_str!(internal, self.app_name, ulSettingsSetAppName);
+        set_config_str!(internal, self.app_name, lib.appcore().ulSettingsSetAppName);
 
-        set_config_str!(internal, self.filesystem_path, ulSettingsSetFileSystemPath);
+        set_config_str!(
+            internal,
+            self.filesystem_path,
+            lib.appcore().ulSettingsSetFileSystemPath
+        );
 
         set_config!(
             internal,
             self.load_shaders_from_filesystem,
-            ulSettingsSetLoadShadersFromFileSystem
+            lib.appcore().ulSettingsSetLoadShadersFromFileSystem
         );
 
         set_config!(
             internal,
             self.force_cpu_renderer,
-            ulSettingsSetForceCPURenderer
+            lib.appcore().ulSettingsSetForceCPURenderer
         );
 
-        Some(Settings { internal })
+        Some(Settings { lib, internal })
     }
 }
 
 /// Monitor struct, represents a platform monitor.
 pub struct Monitor {
+    lib: Arc<Library>,
     // This is managed by the `App`, so we don't need to free it.
     internal: ul_sys::ULMonitor,
 }
@@ -141,22 +156,23 @@ pub struct Monitor {
 impl Monitor {
     /// Get the DPI scale (1.0 = 100%)
     pub fn get_scale(&self) -> f64 {
-        unsafe { ul_sys::ulMonitorGetScale(self.internal) }
+        unsafe { self.lib.appcore().ulMonitorGetScale(self.internal) }
     }
 
     /// Get the width of the monitor.
     pub fn get_width(&self) -> u32 {
-        unsafe { ul_sys::ulMonitorGetWidth(self.internal) }
+        unsafe { self.lib.appcore().ulMonitorGetWidth(self.internal) }
     }
 
     /// Get the height of the monitor.
     pub fn get_height(&self) -> u32 {
-        unsafe { ul_sys::ulMonitorGetHeight(self.internal) }
+        unsafe { self.lib.appcore().ulMonitorGetHeight(self.internal) }
     }
 }
 
 /// Main application struct.
 pub struct App {
+    lib: Arc<Library>,
     settings: Settings,
 
     monitor: Monitor,
@@ -178,44 +194,50 @@ impl App {
     /// config.
     ///
     /// Returns [`None`] if the application could not be created.
-    pub fn new(settings: Option<Settings>, config: Option<Config>) -> Result<Self, CreationError> {
+    pub fn new(
+        lib: Arc<Library>,
+        settings: Option<Settings>,
+        config: Option<Config>,
+    ) -> Result<Self, CreationError> {
         let config = match config {
             Some(config) => config,
             None => Config::start()
-                .build()
+                .build(lib.clone())
                 .ok_or(CreationError::NullReference)?,
         };
 
         let settings = match settings {
             Some(settings) => settings,
             None => Settings::start()
-                .build()
+                .build(lib.clone())
                 .ok_or(CreationError::NullReference)?,
         };
 
         unsafe {
-            let app_internal = ul_sys::ulCreateApp(settings.to_ul(), config.to_ul());
+            let app_internal = lib.appcore().ulCreateApp(settings.to_ul(), config.to_ul());
             if app_internal.is_null() {
                 return Err(CreationError::NullReference);
             }
 
             let monitor = Monitor {
-                internal: ul_sys::ulAppGetMainMonitor(app_internal),
+                lib: lib.clone(),
+                internal: lib.appcore().ulAppGetMainMonitor(app_internal),
             };
             if monitor.internal.is_null() {
-                ul_sys::ulDestroyApp(app_internal);
+                lib.appcore().ulDestroyApp(app_internal);
                 return Err(CreationError::NullReference);
             }
-            let renderer_raw = ul_sys::ulAppGetRenderer(app_internal);
-            if let Ok(renderer) = Renderer::from_raw(renderer_raw) {
+            let renderer_raw = lib.appcore().ulAppGetRenderer(app_internal);
+            if let Ok(renderer) = Renderer::from_raw(lib.clone(), renderer_raw) {
                 Ok(Self {
+                    lib,
                     settings,
                     internal: app_internal,
                     monitor,
                     renderer,
                 })
             } else {
-                ul_sys::ulDestroyApp(app_internal);
+                lib.appcore().ulDestroyApp(app_internal);
                 Err(CreationError::NullReference)
             }
         }
@@ -235,7 +257,7 @@ impl App {
 
     /// Whether or not the app is running.
     pub fn is_running(&self) -> bool {
-        unsafe { ul_sys::ulAppIsRunning(self.internal) }
+        unsafe { self.lib.appcore().ulAppIsRunning(self.internal) }
     }
 
     /// Get the underlying [`Renderer`] instance.
@@ -251,18 +273,17 @@ impl App {
         /// [`Renderer::update`](crate::renderer::Renderer::update) and
         /// [`Renderer::render`](crate::renderer::Renderer::render).
         pub fn set_update_callback(&self, callback: FnMut()) :
-            ulAppSetUpdateCallback() {
-        }
+            [App::lib.appcore()] ulAppSetUpdateCallback() {}
     }
 
     /// Start the main loop.
     pub fn run(&self) {
-        unsafe { ul_sys::ulAppRun(self.internal) }
+        unsafe { self.lib.appcore().ulAppRun(self.internal) }
     }
 
     /// Stop the main loop.
     pub fn quit(&self) {
-        unsafe { ul_sys::ulAppQuit(self.internal) }
+        unsafe { self.lib.appcore().ulAppQuit(self.internal) }
     }
 
     /// Create a new window.
@@ -287,6 +308,7 @@ impl App {
     ) -> Option<Window> {
         unsafe {
             Window::create(
+                self.lib.clone(),
                 self.monitor.internal,
                 width,
                 height,
@@ -300,7 +322,7 @@ impl App {
 impl Drop for App {
     fn drop(&mut self) {
         unsafe {
-            ul_sys::ulDestroyApp(self.internal);
+            self.lib.appcore().ulDestroyApp(self.internal);
         }
     }
 }

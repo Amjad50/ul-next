@@ -13,6 +13,7 @@ use ul_next::{
     platform::{self, LogLevel, Logger},
     renderer::Renderer,
     view::ViewConfig,
+    Library,
 };
 
 struct MyLogger;
@@ -34,9 +35,11 @@ impl Logger for MyLogger {
 ///  Our main loop waits for the page to finish loading by listening to
 ///  event from `on_finished_loading` and then renders the page to a PNG.
 fn main() {
+    let lib = Library::linked();
+
     // create our config
     // we are using the defaults, but we can change that if we need
-    let config = Config::start().build().unwrap();
+    let config = Config::start().build(lib.clone()).unwrap();
 
     // Since we're not using App::Create(), we must provide our own Platform API handlers.
     //
@@ -51,20 +54,19 @@ fn main() {
     //
     // The only Platform API handler we are required to provide is a font loader.
     // we can't use a custom font loader yet, but we can use the default one.
-    platform::enable_platform_fontloader();
+    platform::enable_platform_fontloader(lib.clone());
 
     // use the default filesystem and we specify the root path, which
     // all `file:///` URLs will be resolved against.
     //
     // NOTE: custom filesystem is still not supported in this library
-    platform::enable_platform_filesystem("./examples").unwrap();
+    platform::enable_platform_filesystem(lib.clone(), "./examples").unwrap();
 
     // Register a logger that logs messages to the console.
     //
     // We can use [`platform::enable_default_logger`] and provide a log file
     // to log to it.
-    platform::set_logger(MyLogger);
-    platform::enable_default_logger("./log.log").unwrap();
+    platform::set_logger(lib.clone(), MyLogger);
 
     // Create our Renderer (you should only create this once per application).
     //
@@ -85,7 +87,7 @@ fn main() {
         .initial_device_scale(2.0)
         .font_family_standard("Arial")
         .is_accelerated(false)
-        .build()
+        .build(lib.clone())
         .unwrap();
 
     // We use the default session by passing `None`.

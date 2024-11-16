@@ -1,6 +1,8 @@
 //! Events that can be fired in [`View`](crate::view::View)s.
 
-use crate::{error::CreationError, key_code::VirtualKeyCode, string::UlString};
+use std::sync::Arc;
+
+use crate::{error::CreationError, key_code::VirtualKeyCode, string::UlString, Library};
 
 #[derive(Clone, Copy)]
 /// The type of the [`KeyEvent`].
@@ -101,18 +103,26 @@ pub struct KeyEventCreationInfo<'a, 'b> {
 /// A generic keyboard event, that can be used to fire a key event in a
 /// `view` by [`View::fire_key_event`](crate::view::View::fire_key_event).
 pub struct KeyEvent {
+    lib: Arc<Library>,
     internal: ul_sys::ULKeyEvent,
 }
 
 impl KeyEvent {
     /// Create a new `KeyEvent`.
-    pub fn new(creation_info: KeyEventCreationInfo) -> Result<KeyEvent, CreationError> {
-        let ul_string_text = unsafe { UlString::from_str(creation_info.text) }?;
+    ///
+    /// # Arguments
+    /// * `lib` - The ultralight library.
+    /// * `creation_info` - The information needed to create the key event.
+    pub fn new(
+        lib: Arc<Library>,
+        creation_info: KeyEventCreationInfo,
+    ) -> Result<KeyEvent, CreationError> {
+        let ul_string_text = unsafe { UlString::from_str(lib.clone(), creation_info.text) }?;
         let ul_string_unmodified_text =
-            unsafe { UlString::from_str(creation_info.unmodified_text) }?;
+            unsafe { UlString::from_str(lib.clone(), creation_info.unmodified_text) }?;
 
         let internal = unsafe {
-            ul_sys::ulCreateKeyEvent(
+            lib.ultralight().ulCreateKeyEvent(
                 creation_info.ty as u32,
                 creation_info.modifiers.to_u32(),
                 creation_info.virtual_key_code.into(),
@@ -128,7 +138,7 @@ impl KeyEvent {
         if internal.is_null() {
             Err(CreationError::NullReference)
         } else {
-            Ok(Self { internal })
+            Ok(Self { lib, internal })
         }
     }
 
@@ -142,7 +152,7 @@ impl KeyEvent {
 impl Drop for KeyEvent {
     fn drop(&mut self) {
         unsafe {
-            ul_sys::ulDestroyKeyEvent(self.internal);
+            self.lib.ultralight().ulDestroyKeyEvent(self.internal);
         }
     }
 }
@@ -170,6 +180,7 @@ pub enum MouseButton {
 /// A generic mouse event, that can be used to fire a key event in a
 /// `view` by [`View::fire_mouse_event`](crate::view::View::fire_mouse_event).
 pub struct MouseEvent {
+    lib: Arc<Library>,
     internal: ul_sys::ULMouseEvent,
 }
 
@@ -177,22 +188,27 @@ impl MouseEvent {
     /// Create a new `MouseEvent`.
     ///
     /// # Arguments
+    /// * `lib` - The ultralight library.
     /// * `ty` - The type of the event.
     /// * `x` - The x-position of the mouse. relative to the view.
     /// * `y` - The y-position of the mouse. relative to the view.
     /// * `button` - The button that was pressed or released if any.
     pub fn new(
+        lib: Arc<Library>,
         ty: MouseEventType,
         x: i32,
         y: i32,
         button: MouseButton,
     ) -> Result<MouseEvent, CreationError> {
-        let internal = unsafe { ul_sys::ulCreateMouseEvent(ty as u32, x, y, button as u32) };
+        let internal = unsafe {
+            lib.ultralight()
+                .ulCreateMouseEvent(ty as u32, x, y, button as u32)
+        };
 
         if internal.is_null() {
             Err(CreationError::NullReference)
         } else {
-            Ok(Self { internal })
+            Ok(Self { lib, internal })
         }
     }
 
@@ -206,7 +222,7 @@ impl MouseEvent {
 impl Drop for MouseEvent {
     fn drop(&mut self) {
         unsafe {
-            ul_sys::ulDestroyMouseEvent(self.internal);
+            self.lib.ultralight().ulDestroyMouseEvent(self.internal);
         }
     }
 }
@@ -223,6 +239,7 @@ pub enum ScrollEventType {
 /// A generic scroll event, that can be used to fire a key event in a
 /// `view` by [`View::fire_scroll_event`](crate::view::View::fire_scroll_event).
 pub struct ScrollEvent {
+    lib: Arc<Library>,
     internal: ul_sys::ULScrollEvent,
 }
 
@@ -230,20 +247,25 @@ impl ScrollEvent {
     /// Create a new `ScrollEvent`.
     ///
     /// # Arguments
+    /// * `lib` - The ultralight library.
     /// * `ty` - The type of the event.
     /// * `delta_x` - The horizontal scroll amount.
     /// * `delta_y` - The vertical scroll amount.
     pub fn new(
+        lib: Arc<Library>,
         ty: ScrollEventType,
         delta_x: i32,
         delta_y: i32,
     ) -> Result<ScrollEvent, CreationError> {
-        let internal = unsafe { ul_sys::ulCreateScrollEvent(ty as u32, delta_x, delta_y) };
+        let internal = unsafe {
+            lib.ultralight()
+                .ulCreateScrollEvent(ty as u32, delta_x, delta_y)
+        };
 
         if internal.is_null() {
             Err(CreationError::NullReference)
         } else {
-            Ok(Self { internal })
+            Ok(Self { lib, internal })
         }
     }
 
@@ -257,7 +279,7 @@ impl ScrollEvent {
 impl Drop for ScrollEvent {
     fn drop(&mut self) {
         unsafe {
-            ul_sys::ulDestroyScrollEvent(self.internal);
+            self.lib.ultralight().ulDestroyScrollEvent(self.internal);
         }
     }
 }
@@ -279,6 +301,7 @@ pub enum GamepadEventType {
 ///
 /// See [`Renderer::fire_gamepad_event`][crate::renderer::Renderer::fire_gamepad_event].
 pub struct GamepadEvent {
+    lib: Arc<Library>,
     internal: ul_sys::ULGamepadEvent,
 }
 
@@ -286,16 +309,21 @@ impl GamepadEvent {
     /// Create a new `GamepadEvent`.
     ///
     /// # Arguments
+    /// * `lib` - The ultralight library.
     /// * `index` - The index of the gamepad, this should match the value previously set in
     ///   [`Renderer::set_gamepad_details`][crate::renderer::Renderer::set_gamepad_details].
     /// * `ty` - The type of this GamepadEvent.
-    pub fn new(index: u32, ty: GamepadEventType) -> Result<GamepadEvent, CreationError> {
-        let internal = unsafe { ul_sys::ulCreateGamepadEvent(index, ty as u32) };
+    pub fn new(
+        lib: Arc<Library>,
+        index: u32,
+        ty: GamepadEventType,
+    ) -> Result<GamepadEvent, CreationError> {
+        let internal = unsafe { lib.ultralight().ulCreateGamepadEvent(index, ty as u32) };
 
         if internal.is_null() {
             Err(CreationError::NullReference)
         } else {
-            Ok(Self { internal })
+            Ok(Self { lib, internal })
         }
     }
 
@@ -309,7 +337,7 @@ impl GamepadEvent {
 impl Drop for GamepadEvent {
     fn drop(&mut self) {
         unsafe {
-            ul_sys::ulDestroyGamepadEvent(self.internal);
+            self.lib.ultralight().ulDestroyGamepadEvent(self.internal);
         }
     }
 }
@@ -318,6 +346,7 @@ impl Drop for GamepadEvent {
 ///
 /// See [`Renderer::fire_gamepad_axis_event`][crate::renderer::Renderer::fire_gamepad_axis_event].
 pub struct GamepadAxisEvent {
+    lib: Arc<Library>,
     internal: ul_sys::ULGamepadAxisEvent,
 }
 
@@ -325,18 +354,27 @@ impl GamepadAxisEvent {
     /// Create a new `GamepadAxisEvent`.
     ///
     /// # Arguments
+    /// * `lib` - The ultralight library.
     /// * `index` - The index of the gamepad, this should match the value previously set in
     ///   [`Renderer::set_gamepad_details`][crate::renderer::Renderer::set_gamepad_details].
     /// * `axis_index` - The index of the axis whose value has changed.
     ///   This value should be in the range previously set in [`Renderer::set_gamepad_details`][crate::renderer::Renderer::set_gamepad_details].
     /// * `value` - The new value of the axis. This value should be normalized to the range [-1.0, 1.0].
-    pub fn new(index: u32, axis_index: u32, value: f64) -> Result<GamepadAxisEvent, CreationError> {
-        let internal = unsafe { ul_sys::ulCreateGamepadAxisEvent(index, axis_index, value) };
+    pub fn new(
+        lib: Arc<Library>,
+        index: u32,
+        axis_index: u32,
+        value: f64,
+    ) -> Result<GamepadAxisEvent, CreationError> {
+        let internal = unsafe {
+            lib.ultralight()
+                .ulCreateGamepadAxisEvent(index, axis_index, value)
+        };
 
         if internal.is_null() {
             Err(CreationError::NullReference)
         } else {
-            Ok(Self { internal })
+            Ok(Self { lib, internal })
         }
     }
 
@@ -350,7 +388,9 @@ impl GamepadAxisEvent {
 impl Drop for GamepadAxisEvent {
     fn drop(&mut self) {
         unsafe {
-            ul_sys::ulDestroyGamepadAxisEvent(self.internal);
+            self.lib
+                .ultralight()
+                .ulDestroyGamepadAxisEvent(self.internal);
         }
     }
 }
@@ -359,6 +399,7 @@ impl Drop for GamepadAxisEvent {
 ///
 /// See [`Renderer::fire_gamepad_button_event`][crate::renderer::Renderer::fire_gamepad_button_event].
 pub struct GamepadButtonEvent {
+    lib: Arc<Library>,
     internal: ul_sys::ULGamepadButtonEvent,
 }
 
@@ -366,6 +407,7 @@ impl GamepadButtonEvent {
     /// Create a new `GamepadButtonEvent`.
     ///
     /// # Arguments
+    /// * `lib` - The ultralight library.
     /// * `index` - The index of the gamepad, this should match the value previously set in
     ///   [`Renderer::set_gamepad_details`][crate::renderer::Renderer::set_gamepad_details].
     /// * `button_index` - The index of the button whose value has changed.
@@ -373,16 +415,20 @@ impl GamepadButtonEvent {
     /// * `value` - The new value of the axis. This value should be normalized to the range [-1.0, 1.0].
     ///   with any value greater than 0.0 to be considered "pressed".
     pub fn new(
+        lib: Arc<Library>,
         index: u32,
         button_index: u32,
         value: f64,
     ) -> Result<GamepadButtonEvent, CreationError> {
-        let internal = unsafe { ul_sys::ulCreateGamepadButtonEvent(index, button_index, value) };
+        let internal = unsafe {
+            lib.ultralight()
+                .ulCreateGamepadButtonEvent(index, button_index, value)
+        };
 
         if internal.is_null() {
             Err(CreationError::NullReference)
         } else {
-            Ok(Self { internal })
+            Ok(Self { lib, internal })
         }
     }
 
@@ -396,7 +442,9 @@ impl GamepadButtonEvent {
 impl Drop for GamepadButtonEvent {
     fn drop(&mut self) {
         unsafe {
-            ul_sys::ulDestroyGamepadButtonEvent(self.internal);
+            self.lib
+                .ultralight()
+                .ulDestroyGamepadButtonEvent(self.internal);
         }
     }
 }

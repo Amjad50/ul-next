@@ -1,24 +1,30 @@
-use std::{os::raw::c_char, slice};
+use std::{os::raw::c_char, slice, sync::Arc};
 
-use crate::error::CreationError;
+use crate::{error::CreationError, Library};
 
 /// A rust wrapper around [`ul_sys::ULString`], which is used in ultralight
 /// functions.
 pub(crate) struct UlString {
+    lib: Arc<Library>,
     internal: ul_sys::ULString,
 }
 
 impl UlString {
     /// Creates a new `UlString` from a `&str`.
-    pub(crate) unsafe fn from_str(s: &str) -> Result<Self, CreationError> {
-        let internal = Self::from_str_unmanaged(s)?;
-        Ok(Self { internal })
+    pub(crate) unsafe fn from_str(lib: Arc<Library>, s: &str) -> Result<Self, CreationError> {
+        let internal = Self::from_str_unmanaged(&lib, s)?;
+        Ok(Self { lib, internal })
     }
 
     /// Creates a new `UlString` from a `&str`. But will not destroy on drop.
     /// This will be sent to `Ultralight` library and it will handle its memory.
-    pub(crate) unsafe fn from_str_unmanaged(s: &str) -> Result<ul_sys::ULString, CreationError> {
-        let internal = ul_sys::ulCreateStringUTF8(s.as_bytes().as_ptr() as *const c_char, s.len());
+    pub(crate) unsafe fn from_str_unmanaged(
+        lib: &Arc<Library>,
+        s: &str,
+    ) -> Result<ul_sys::ULString, CreationError> {
+        let internal = lib
+            .ultralight()
+            .ulCreateStringUTF8(s.as_bytes().as_ptr() as *const c_char, s.len());
         if internal.is_null() {
             Err(CreationError::UlStringCreationError(s.to_string()))
         } else {
@@ -37,17 +43,18 @@ impl UlString {
     /// Some ultralight APIs owns the string, so we can't destroy it, its always
     /// safer to make our own copy.
     pub(crate) unsafe fn copy_raw_to_string(
+        lib: &Arc<Library>,
         raw: ul_sys::ULString,
     ) -> Result<String, CreationError> {
         if raw.is_null() {
             return Err(CreationError::NullReference);
         }
 
-        let raw_data = ul_sys::ulStringGetData(raw);
+        let raw_data = lib.ultralight().ulStringGetData(raw);
         if raw_data.is_null() {
             return Err(CreationError::NullReference);
         }
-        let utf8_data = slice::from_raw_parts(raw_data, ul_sys::ulStringGetLength(raw))
+        let utf8_data = slice::from_raw_parts(raw_data, lib.ultralight().ulStringGetLength(raw))
             .iter()
             .map(|c| *c as u8)
             .collect();
@@ -59,7 +66,7 @@ impl UlString {
 impl Drop for UlString {
     fn drop(&mut self) {
         unsafe {
-            ul_sys::ulDestroyString(self.internal);
+            self.lib.ultralight().ulDestroyString(self.internal);
         }
     }
 }

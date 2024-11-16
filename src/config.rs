@@ -1,5 +1,9 @@
 //! The configuration of the [`Renderer`](crate::renderer::Renderer) struct.
 
+use std::sync::Arc;
+
+use crate::Library;
+
 /// The winding order for front-facing triangles. (Only used when the GPU renderer is used)
 pub enum FaceWinding {
     /// Clockwise Winding (Direct3D, etc.)
@@ -27,6 +31,7 @@ pub enum FontHinting {
 /// This is intended to be implemented by users when creating the Renderer in
 /// [`Renderer::create`](crate::renderer::Renderer::create).
 pub struct Config {
+    lib: Arc<Library>,
     internal: ul_sys::ULConfig,
 }
 
@@ -42,12 +47,17 @@ impl Config {
     pub(crate) unsafe fn to_ul(&self) -> ul_sys::ULConfig {
         self.internal
     }
+
+    /// Returns the library associated with this config.
+    pub(crate) fn lib(&self) -> &Arc<Library> {
+        &self.lib
+    }
 }
 
 impl Drop for Config {
     fn drop(&mut self) {
         unsafe {
-            ul_sys::ulDestroyConfig(self.internal);
+            self.lib.ultralight().ulDestroyConfig(self.internal);
         }
     }
 }
@@ -271,64 +281,104 @@ impl ConfigBuilder {
     /// Builds the [`Config`] struct using the settings configured in this builder.
     ///
     /// Returns [`None`] if failed to create [`Config`].
-    pub fn build(self) -> Option<Config> {
-        let internal = unsafe { ul_sys::ulCreateConfig() };
+    pub fn build(self, lib: Arc<Library>) -> Option<Config> {
+        let internal = unsafe { lib.ultralight().ulCreateConfig() };
 
         if internal.is_null() {
             return None;
         }
 
-        set_config_str!(internal, self.cache_path, ulConfigSetCachePath);
+        set_config_str!(
+            internal,
+            self.cache_path,
+            lib.ultralight().ulConfigSetCachePath
+        );
         set_config_str!(
             internal,
             self.resource_path_prefix,
-            ulConfigSetResourcePathPrefix
+            lib.ultralight().ulConfigSetResourcePathPrefix
         );
         set_config!(
             internal,
             self.face_winding.map(|x| x as u32),
-            ulConfigSetFaceWinding
+            lib.ultralight().ulConfigSetFaceWinding
         );
         set_config!(
             internal,
             self.font_hinting.map(|x| x as u32),
-            ulConfigSetFontHinting
+            lib.ultralight().ulConfigSetFontHinting
         );
-        set_config!(internal, self.font_gamma, ulConfigSetFontGamma);
-        set_config_str!(internal, self.user_stylesheet, ulConfigSetUserStylesheet);
-        set_config!(internal, self.force_repaint, ulConfigSetForceRepaint);
+        set_config!(
+            internal,
+            self.font_gamma,
+            lib.ultralight().ulConfigSetFontGamma
+        );
+        set_config_str!(
+            internal,
+            self.user_stylesheet,
+            lib.ultralight().ulConfigSetUserStylesheet
+        );
+        set_config!(
+            internal,
+            self.force_repaint,
+            lib.ultralight().ulConfigSetForceRepaint
+        );
         set_config!(
             internal,
             self.animation_timer_delay,
-            ulConfigSetAnimationTimerDelay
+            lib.ultralight().ulConfigSetAnimationTimerDelay
         );
         set_config!(
             internal,
             self.scroll_timer_delay,
-            ulConfigSetScrollTimerDelay
+            lib.ultralight().ulConfigSetScrollTimerDelay
         );
-        set_config!(internal, self.recycle_delay, ulConfigSetRecycleDelay);
-        set_config!(internal, self.memory_cache_size, ulConfigSetMemoryCacheSize);
-        set_config!(internal, self.page_cache_size, ulConfigSetPageCacheSize);
-        set_config!(internal, self.override_ram_size, ulConfigSetOverrideRAMSize);
+        set_config!(
+            internal,
+            self.recycle_delay,
+            lib.ultralight().ulConfigSetRecycleDelay
+        );
+        set_config!(
+            internal,
+            self.memory_cache_size,
+            lib.ultralight().ulConfigSetMemoryCacheSize
+        );
+        set_config!(
+            internal,
+            self.page_cache_size,
+            lib.ultralight().ulConfigSetPageCacheSize
+        );
+        set_config!(
+            internal,
+            self.override_ram_size,
+            lib.ultralight().ulConfigSetOverrideRAMSize
+        );
         set_config!(
             internal,
             self.min_large_heap_size,
-            ulConfigSetMinLargeHeapSize
+            lib.ultralight().ulConfigSetMinLargeHeapSize
         );
         set_config!(
             internal,
             self.min_small_heap_size,
-            ulConfigSetMinSmallHeapSize
+            lib.ultralight().ulConfigSetMinSmallHeapSize
         );
         set_config!(
             internal,
             self.num_renderer_threads,
-            ulConfigSetNumRendererThreads
+            lib.ultralight().ulConfigSetNumRendererThreads
         );
-        set_config!(internal, self.max_update_time, ulConfigSetMaxUpdateTime);
-        set_config!(internal, self.bitmap_alignment, ulConfigSetBitmapAlignment);
+        set_config!(
+            internal,
+            self.max_update_time,
+            lib.ultralight().ulConfigSetMaxUpdateTime
+        );
+        set_config!(
+            internal,
+            self.bitmap_alignment,
+            lib.ultralight().ulConfigSetBitmapAlignment
+        );
 
-        Some(Config { internal })
+        Some(Config { lib, internal })
     }
 }

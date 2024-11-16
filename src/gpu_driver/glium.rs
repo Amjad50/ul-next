@@ -174,9 +174,9 @@ pub enum GliumGpuDriverError {
 /// **lifetime of the [`Renderer`](crate::renderer::Renderer)**
 ///
 /// # Examples
-/// ```no_run
+/// ```no_run,ignore
 /// let (sender, mut receiver) = create_gpu_driver(&display);
-/// platform::set_gpu_driver(sender);
+/// platform::set_gpu_driver(lib.clone(), sender);
 ///
 /// renderer.render(); // will dispatch and send all events to `reciever` from `ultralight`
 /// receiver.render(); // will render all events received from `sender`
@@ -582,7 +582,7 @@ impl GliumGpuDriverReceiver {
     /// `render_target` of a `view` by [`View::render_target`](crate::view::View::render_target).
     ///
     /// Example:
-    /// ```no_run
+    /// ```no_run,ignore
     /// let render_target = view.render_target().unwrap();
     /// let texture = receiver.get_texture(&render_target.texture_id);
     /// ```

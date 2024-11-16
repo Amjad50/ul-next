@@ -3,22 +3,42 @@
 //!
 //! The configurations applied to the platform should be set before creating
 //! a [`Renderer`](crate::renderer::Renderer) instance.
-use std::{path::Path, sync::Mutex};
+use std::{
+    path::Path,
+    sync::{Arc, Mutex},
+};
+
+#[allow(unused_imports)]
+use crate::error::CreationError;
 
 use crate::{
-    error::CreationError,
     gpu_driver::{self, GpuDriver},
     string::UlString,
+    Library,
 };
 
 // static globals for holding Rust implementations of platform structs,
 // these will be used on callbacks from the C APIs.
 lazy_static::lazy_static! {
-    static ref LOGGER: Mutex<Option<Box<dyn Logger + Send>>> = Mutex::new(None);
-    static ref CLIPBOARD: Mutex<Option<Box<dyn Clipboard + Send>>> = Mutex::new(None);
-    static ref FILESYSTEM: Mutex<Option<Box<dyn FileSystem + Send>>> = Mutex::new(None);
-    static ref FONTLOADER: Mutex<Option<Box<dyn FontLoader + Send>>> = Mutex::new(None);
-    pub(crate) static ref GPUDRIVER: Mutex<Option<Box<dyn GpuDriver + Send>>> = Mutex::new(None);
+    static ref LOGGER: InternalPlatform<Box<dyn Logger + Send>> = InternalPlatform::new();
+    static ref CLIPBOARD: InternalPlatform<Box<dyn Clipboard + Send>> = InternalPlatform::new();
+    static ref FILESYSTEM: InternalPlatform<Box<dyn FileSystem + Send>> = InternalPlatform::new();
+    static ref FONTLOADER: InternalPlatform<Box<dyn FontLoader + Send>> = InternalPlatform::new();
+    pub(crate) static ref GPUDRIVER: InternalPlatform<Box<dyn GpuDriver + Send>> = InternalPlatform::new();
+}
+
+pub(crate) struct InternalPlatform<T> {
+    pub(crate) lib: Mutex<Option<Arc<Library>>>,
+    pub(crate) obj: Mutex<Option<T>>,
+}
+
+impl<T> InternalPlatform<T> {
+    pub(crate) const fn new() -> Self {
+        Self {
+            lib: Mutex::new(None),
+            obj: Mutex::new(None),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -125,6 +145,7 @@ pub trait FileSystem {
 
 /// Represents a font file, either on-disk path or in-memory file contents.
 pub struct FontFile {
+    lib: Arc<Library>,
     internal: ul_sys::ULFontFile,
 }
 
@@ -136,18 +157,19 @@ impl FontFile {
     /// Create a font file from an on-disk file path.
     ///
     /// The file path should already exist.
-    pub fn from_path<P: AsRef<Path>>(path: P) -> Option<Self> {
+    pub fn from_path<P: AsRef<Path>>(lib: Arc<Library>, path: P) -> Option<Self> {
         unsafe {
-            let path = UlString::from_str(path.as_ref().to_str().unwrap()).unwrap();
+            let path = UlString::from_str(lib.clone(), path.as_ref().to_str().unwrap()).unwrap();
 
-            let internal = ul_sys::ulFontFileCreateFromFilePath(path.to_ul());
+            let internal = lib.ultralight().ulFontFileCreateFromFilePath(path.to_ul());
             if internal.is_null() {
                 return None;
             }
-            Some(FontFile { internal })
+            Some(FontFile { lib, internal })
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn to_ul(&self) -> ul_sys::ULFontFile {
         self.internal
     }
@@ -156,7 +178,7 @@ impl FontFile {
 impl Drop for FontFile {
     fn drop(&mut self) {
         unsafe {
-            ul_sys::ulDestroyFontFile(self.internal);
+            self.lib.ultralight().ulDestroyFontFile(self.internal);
         }
     }
 }
@@ -238,11 +260,11 @@ platform_set_interface_macro! {
     ///
     /// [`App::new`]: crate::app::App::new
     /// [`Renderer::create`]: crate::renderer::Renderer::create
-    pub set_logger<Logger>(logger -> LOGGER) -> ulPlatformSetLogger(ULLogger) {
+    pub set_logger<Logger>(lib, logger -> LOGGER) -> ulPlatformSetLogger(ULLogger) {
         // TODO: handle errors
         log_message((ul_log_level: u32, ul_message: ul_sys::ULString)) -> ((log_level: u32, message: String)) {
             let log_level = LogLevel::try_from(ul_log_level).unwrap();
-            let message = UlString::copy_raw_to_string(ul_message).unwrap();
+            let message = UlString::copy_raw_to_string(&lib, ul_message).unwrap();
         }
     }
 }
@@ -260,19 +282,19 @@ platform_set_interface_macro! {
     ///
     /// [`App::new`]: crate::app::App::new
     /// [`Renderer::create`]: crate::renderer::Renderer::create
-    pub set_clipboard<Clipboard>(clipboard -> CLIPBOARD) -> ulPlatformSetClipboard(ULClipboard) {
+    pub set_clipboard<Clipboard>(lib, clipboard -> CLIPBOARD) -> ulPlatformSetClipboard(ULClipboard) {
         // TODO: handle errors
         clear() -> () {}
         read_plain_text((ul_result: ul_sys::ULString)) -> (() -> result: Option<String>) {
             // no need to preprocess since we're returning a string
         } {
             if let Some(result) = result {
-                let result = UlString::from_str(&result).unwrap();
-                ul_sys::ulStringAssignString(ul_result, result.to_ul());
+                let result = UlString::from_str(lib.clone(), &result).unwrap();
+                lib.ultralight().ulStringAssignString(ul_result, result.to_ul());
             }
         }
         write_plain_text((ul_text: ul_sys::ULString)) -> ((text: &String)) {
-            let text = UlString::copy_raw_to_string(ul_text).unwrap();
+            let text = UlString::copy_raw_to_string(&lib, ul_text).unwrap();
             let text = &text;
         }
     }
@@ -296,30 +318,30 @@ platform_set_interface_macro! {
     ///
     /// [`App::new`]: crate::app::App::new
     /// [`Renderer::create`]: crate::renderer::Renderer::create
-    pub set_filesystem<FileSystem>(filesystem -> FILESYSTEM) -> ulPlatformSetFileSystem(ULFileSystem) {
+    pub set_filesystem<FileSystem>(lib, filesystem -> FILESYSTEM) -> ulPlatformSetFileSystem(ULFileSystem) {
         // TODO: handle errors
         file_exists((ul_path: ul_sys::ULString) -> bool) -> ((path: &str)) {
-            let path = UlString::copy_raw_to_string(ul_path).unwrap();
+            let path = UlString::copy_raw_to_string(&lib, ul_path).unwrap();
             let path = &path;
         }
         get_file_mime_type((ul_path: ul_sys::ULString) -> ul_sys::ULString) -> ((path: &str) -> result: String) {
-            let path = UlString::copy_raw_to_string(ul_path).unwrap();
+            let path = UlString::copy_raw_to_string(&lib, ul_path).unwrap();
             let path = &path;
         } {
-            UlString::from_str_unmanaged(&result).unwrap()
+            UlString::from_str_unmanaged(&lib, &result).unwrap()
         }
         get_file_charset((ul_path: ul_sys::ULString) -> ul_sys::ULString) -> ((path: &str) -> result: String) {
-            let path = UlString::copy_raw_to_string(ul_path).unwrap();
+            let path = UlString::copy_raw_to_string(&lib, ul_path).unwrap();
             let path = &path;
         } {
-            UlString::from_str_unmanaged(&result).unwrap()
+            UlString::from_str_unmanaged(&lib, &result).unwrap()
         }
         open_file((ul_path: ul_sys::ULString) -> ul_sys::ULBuffer) -> ((path: &str) -> result: Option<Vec<u8>>) {
-            let path = UlString::copy_raw_to_string(ul_path).unwrap();
+            let path = UlString::copy_raw_to_string(&lib, ul_path).unwrap();
             let path = &path;
         } {
             if let Some(result) = result {
-                ul_sys::ulCreateBufferFromCopy(result.as_ptr() as _, result.len())
+                lib.ultralight().ulCreateBufferFromCopy(result.as_ptr() as _, result.len())
             } else{
                 std::ptr::null_mut()
             }
@@ -327,56 +349,57 @@ platform_set_interface_macro! {
     }
 }
 
-platform_set_interface_macro! {
-    /// Set a custom FontLoader implementation.
-    ///
-    /// The library uses this to load all system fonts.
-    ///
-    /// Every operating system has its own library of installed system fonts. The FontLoader interface
-    /// is used to lookup these fonts and fetch the actual font data (raw TTF/OTF file data) for a given
-    /// given font description.
-    ///
-    /// You should call this before [`Renderer::create`] or [`App::new`].
-    ///
-    /// Note: [`App::new`] will use the default platform font loader if you never call this.
-    ///
-    /// [`App::new`]: crate::app::App::new
-    /// [`Renderer::create`]: crate::renderer::Renderer::create
-    pub set_fontloader<FontLoader>(font_loader -> FONTLOADER) -> ulPlatformSetFontLoader(ULFontLoader) {
-        // TODO: handle errors
-        get_fallback_font(() -> ul_sys::ULString) -> (() -> result: String) {
-            // no need to preprocess since we're returning a string
-        } {
-            UlString::from_str_unmanaged(&result).unwrap()
-        }
+// TODO: for some reason, `ulPlatformSetFontLoader` is found in the headers, but not yet the binaries
+// platform_set_interface_macro! {
+//     /// Set a custom FontLoader implementation.
+//     ///
+//     /// The library uses this to load all system fonts.
+//     ///
+//     /// Every operating system has its own library of installed system fonts. The FontLoader interface
+//     /// is used to lookup these fonts and fetch the actual font data (raw TTF/OTF file data) for a given
+//     /// given font description.
+//     ///
+//     /// You should call this before [`Renderer::create`] or [`App::new`].
+//     ///
+//     /// Note: [`App::new`] will use the default platform font loader if you never call this.
+//     ///
+//     /// [`App::new`]: crate::app::App::new
+//     /// [`Renderer::create`]: crate::renderer::Renderer::create
+//     pub set_fontloader<FontLoader>(font_loader -> FONTLOADER) -> ulPlatformSetFontLoader(ULFontLoader) {
+//         // TODO: handle errors
+//         get_fallback_font(() -> ul_sys::ULString) -> (() -> result: String) {
+//             // no need to preprocess since we're returning a string
+//         } {
+//             UlString::from_str_unmanaged(&result).unwrap()
+//         }
 
-        get_fallback_font_for_characters(
-            (ul_characters: ul_sys::ULString, weight: i32, italic: bool) -> ul_sys::ULString) ->
-            ((characters: &str, weight: i32, italic: bool) -> result: String)
-        {
-            let characters = UlString::copy_raw_to_string(ul_characters).unwrap();
-            let characters = &characters;
-        } {
-            UlString::from_str_unmanaged(&result).unwrap()
-        }
+//         get_fallback_font_for_characters(
+//             (ul_characters: ul_sys::ULString, weight: i32, italic: bool) -> ul_sys::ULString) ->
+//             ((characters: &str, weight: i32, italic: bool) -> result: String)
+//         {
+//             let characters = UlString::copy_raw_to_string(ul_characters).unwrap();
+//             let characters = &characters;
+//         } {
+//             UlString::from_str_unmanaged(&result).unwrap()
+//         }
 
-        load((ul_family: ul_sys::ULString, weight: i32, italic: bool) -> ul_sys::ULFontFile) ->
-            ((family: &str, weight: i32, italic: bool) -> result: Option<FontFile>)
-        {
-            let family = UlString::copy_raw_to_string(ul_family).unwrap();
-            let family = &family;
-        } {
-            if let Some(result) = result {
-                let r = result.to_ul();
-                // Assuming Ultralight will take ownership of this
-                core::mem::forget(result);
-                r
-            } else {
-                std::ptr::null_mut()
-            }
-        }
-    }
-}
+//         load((ul_family: ul_sys::ULString, weight: i32, italic: bool) -> ul_sys::ULFontFile) ->
+//             ((family: &str, weight: i32, italic: bool) -> result: Option<FontFile>)
+//         {
+//             let family = UlString::copy_raw_to_string(ul_family).unwrap();
+//             let family = &family;
+//         } {
+//             if let Some(result) = result {
+//                 let r = result.to_ul();
+//                 // Assuming Ultralight will take ownership of this
+//                 core::mem::forget(result);
+//                 r
+//             } else {
+//                 std::ptr::null_mut()
+//             }
+//         }
+//     }
+// }
 
 /// Set a custom GPUDriver implementation.
 ///
@@ -389,8 +412,8 @@ platform_set_interface_macro! {
 /// as a custom implementation for `glium` in [`glium`](crate::gpu_driver::glium).
 ///
 /// You should call this before [`Renderer::create`](crate::renderer::Renderer::create).
-pub fn set_gpu_driver<G: GpuDriver + Send + 'static>(driver: G) {
-    gpu_driver::set_gpu_driver(driver)
+pub fn set_gpu_driver<G: GpuDriver + Send + 'static>(lib: Arc<Library>, driver: G) {
+    gpu_driver::set_gpu_driver(lib, driver)
 }
 
 /// Initializes the default logger (writes the log to a file).
@@ -398,11 +421,16 @@ pub fn set_gpu_driver<G: GpuDriver + Send + 'static>(driver: G) {
 /// This is only needed if you are not calling [`App::new`](crate::app::App::new)
 ///
 /// You should specify a writable log path to write the log to for example “./ultralight.log”.
-pub fn enable_default_logger<P: AsRef<Path>>(log_path: P) -> Result<(), CreationError> {
+#[cfg(any(feature = "appcore_linked", feature = "loaded"))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "appcore_linked", feature = "loaded"))))]
+pub fn enable_default_logger<P: AsRef<Path>>(
+    lib: Arc<Library>,
+    log_path: P,
+) -> Result<(), CreationError> {
     unsafe {
         // TODO: handle error
-        let log_path = UlString::from_str(log_path.as_ref().to_str().unwrap())?;
-        ul_sys::ulEnableDefaultLogger(log_path.to_ul());
+        let log_path = UlString::from_str(lib.clone(), log_path.as_ref().to_str().unwrap())?;
+        lib.appcore().ulEnableDefaultLogger(log_path.to_ul());
     }
     Ok(())
 }
@@ -410,9 +438,11 @@ pub fn enable_default_logger<P: AsRef<Path>>(log_path: P) -> Result<(), Creation
 /// Initializes the platform font loader and sets it as the current FontLoader.
 ///
 /// This is only needed if you are not calling [`App::new`](crate::app::App::new)
-pub fn enable_platform_fontloader() {
+#[cfg(any(feature = "appcore_linked", feature = "loaded"))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "appcore_linked", feature = "loaded"))))]
+pub fn enable_platform_fontloader(lib: Arc<Library>) {
     unsafe {
-        ul_sys::ulEnablePlatformFontLoader();
+        lib.appcore().ulEnablePlatformFontLoader();
     }
 }
 
@@ -421,11 +451,16 @@ pub fn enable_platform_fontloader() {
 /// This is only needed if you are not calling [`App::new`](crate::app::App::new)
 ///
 /// You can specify a base directory path to resolve relative paths against
-pub fn enable_platform_filesystem<P: AsRef<Path>>(base_dir: P) -> Result<(), CreationError> {
+#[cfg(any(feature = "appcore_linked", feature = "loaded"))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "appcore_linked", feature = "loaded"))))]
+pub fn enable_platform_filesystem<P: AsRef<Path>>(
+    lib: Arc<Library>,
+    base_dir: P,
+) -> Result<(), CreationError> {
     unsafe {
         // TODO: handle error
-        let base_dir = UlString::from_str(base_dir.as_ref().to_str().unwrap())?;
-        ul_sys::ulEnablePlatformFileSystem(base_dir.to_ul());
+        let base_dir = UlString::from_str(lib.clone(), base_dir.as_ref().to_str().unwrap())?;
+        lib.appcore().ulEnablePlatformFileSystem(base_dir.to_ul());
     }
     Ok(())
 }

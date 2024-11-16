@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] (based on `1.4.0b.158d65c`)
+### Added
+- libloading support for loading the `ultralight` shared library at runtime (#5 & #8).
+
 ## [0.4.1] (based on `1.4.0b.158d65c`)
 ### Fixed
 - Bug in `glium` built in driver where it will crash when creating some textures (#6)
@@ -38,7 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added examples for the library.
 - Added implementation for `glium` driver using OpenGL.
 
-[unreleased]: https://github.com/Amjad50/ul-next/compare/v0.4.1...HEAD
+[unreleased]: https://github.com/Amjad50/ul-next/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/Amjad50/ul-next/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/Amjad50/ul-next/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/Amjad50/ul-next/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Amjad50/ul-next/compare/v0.2.0...v0.3.0

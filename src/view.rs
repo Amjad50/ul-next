@@ -1,4 +1,6 @@
 //! The View is a component used to load and display web content.
+use std::sync::Arc;
+
 use crate::{
     bitmap::BitmapFormat,
     error::CreationError,
@@ -7,8 +9,111 @@ use crate::{
     renderer::Session,
     string::UlString,
     surface::Surface,
-    window::Cursor,
+    Library,
 };
+
+/// Cursor types (See [`View::set_change_cursor_callback`] and [`Window::set_cursor`][crate::window::Window::set_cursor])
+#[derive(Clone, Copy, Debug)]
+pub enum Cursor {
+    Alias = ul_sys::ULCursor_kCursor_Alias as isize,
+    Cell = ul_sys::ULCursor_kCursor_Cell as isize,
+    ColumnResize = ul_sys::ULCursor_kCursor_ColumnResize as isize,
+    ContextMenu = ul_sys::ULCursor_kCursor_ContextMenu as isize,
+    Copy = ul_sys::ULCursor_kCursor_Copy as isize,
+    Cross = ul_sys::ULCursor_kCursor_Cross as isize,
+    Custom = ul_sys::ULCursor_kCursor_Custom as isize,
+    EastPanning = ul_sys::ULCursor_kCursor_EastPanning as isize,
+    EastResize = ul_sys::ULCursor_kCursor_EastResize as isize,
+    EastWestResize = ul_sys::ULCursor_kCursor_EastWestResize as isize,
+    Grab = ul_sys::ULCursor_kCursor_Grab as isize,
+    Grabbing = ul_sys::ULCursor_kCursor_Grabbing as isize,
+    Hand = ul_sys::ULCursor_kCursor_Hand as isize,
+    Help = ul_sys::ULCursor_kCursor_Help as isize,
+    IBeam = ul_sys::ULCursor_kCursor_IBeam as isize,
+    MiddlePanning = ul_sys::ULCursor_kCursor_MiddlePanning as isize,
+    Move = ul_sys::ULCursor_kCursor_Move as isize,
+    NoDrop = ul_sys::ULCursor_kCursor_NoDrop as isize,
+    None = ul_sys::ULCursor_kCursor_None as isize,
+    NorthEastPanning = ul_sys::ULCursor_kCursor_NorthEastPanning as isize,
+    NorthEastResize = ul_sys::ULCursor_kCursor_NorthEastResize as isize,
+    NorthEastSouthWestResize = ul_sys::ULCursor_kCursor_NorthEastSouthWestResize as isize,
+    NorthPanning = ul_sys::ULCursor_kCursor_NorthPanning as isize,
+    NorthResize = ul_sys::ULCursor_kCursor_NorthResize as isize,
+    NorthSouthResize = ul_sys::ULCursor_kCursor_NorthSouthResize as isize,
+    NorthWestPanning = ul_sys::ULCursor_kCursor_NorthWestPanning as isize,
+    NorthWestResize = ul_sys::ULCursor_kCursor_NorthWestResize as isize,
+    NorthWestSouthEastResize = ul_sys::ULCursor_kCursor_NorthWestSouthEastResize as isize,
+    NotAllowed = ul_sys::ULCursor_kCursor_NotAllowed as isize,
+    Pointer = ul_sys::ULCursor_kCursor_Pointer as isize,
+    Progress = ul_sys::ULCursor_kCursor_Progress as isize,
+    RowResize = ul_sys::ULCursor_kCursor_RowResize as isize,
+    SouthEastPanning = ul_sys::ULCursor_kCursor_SouthEastPanning as isize,
+    SouthEastResize = ul_sys::ULCursor_kCursor_SouthEastResize as isize,
+    SouthPanning = ul_sys::ULCursor_kCursor_SouthPanning as isize,
+    SouthResize = ul_sys::ULCursor_kCursor_SouthResize as isize,
+    SouthWestPanning = ul_sys::ULCursor_kCursor_SouthWestPanning as isize,
+    SouthWestResize = ul_sys::ULCursor_kCursor_SouthWestResize as isize,
+    VerticalText = ul_sys::ULCursor_kCursor_VerticalText as isize,
+    Wait = ul_sys::ULCursor_kCursor_Wait as isize,
+    WestPanning = ul_sys::ULCursor_kCursor_WestPanning as isize,
+    WestResize = ul_sys::ULCursor_kCursor_WestResize as isize,
+    ZoomIn = ul_sys::ULCursor_kCursor_ZoomIn as isize,
+    ZoomOut = ul_sys::ULCursor_kCursor_ZoomOut as isize,
+}
+
+impl TryFrom<ul_sys::ULCursor> for Cursor {
+    type Error = ();
+
+    fn try_from(value: ul_sys::ULCursor) -> Result<Self, Self::Error> {
+        match value {
+            ul_sys::ULCursor_kCursor_Alias => Ok(Self::Alias),
+            ul_sys::ULCursor_kCursor_Cell => Ok(Self::Cell),
+            ul_sys::ULCursor_kCursor_ColumnResize => Ok(Self::ColumnResize),
+            ul_sys::ULCursor_kCursor_ContextMenu => Ok(Self::ContextMenu),
+            ul_sys::ULCursor_kCursor_Copy => Ok(Self::Copy),
+            ul_sys::ULCursor_kCursor_Cross => Ok(Self::Cross),
+            ul_sys::ULCursor_kCursor_Custom => Ok(Self::Custom),
+            ul_sys::ULCursor_kCursor_EastPanning => Ok(Self::EastPanning),
+            ul_sys::ULCursor_kCursor_EastResize => Ok(Self::EastResize),
+            ul_sys::ULCursor_kCursor_EastWestResize => Ok(Self::EastWestResize),
+            ul_sys::ULCursor_kCursor_Grab => Ok(Self::Grab),
+            ul_sys::ULCursor_kCursor_Grabbing => Ok(Self::Grabbing),
+            ul_sys::ULCursor_kCursor_Hand => Ok(Self::Hand),
+            ul_sys::ULCursor_kCursor_Help => Ok(Self::Help),
+            ul_sys::ULCursor_kCursor_IBeam => Ok(Self::IBeam),
+            ul_sys::ULCursor_kCursor_MiddlePanning => Ok(Self::MiddlePanning),
+            ul_sys::ULCursor_kCursor_Move => Ok(Self::Move),
+            ul_sys::ULCursor_kCursor_NoDrop => Ok(Self::NoDrop),
+            ul_sys::ULCursor_kCursor_None => Ok(Self::None),
+            ul_sys::ULCursor_kCursor_NorthEastPanning => Ok(Self::NorthEastPanning),
+            ul_sys::ULCursor_kCursor_NorthEastResize => Ok(Self::NorthEastResize),
+            ul_sys::ULCursor_kCursor_NorthEastSouthWestResize => Ok(Self::NorthEastSouthWestResize),
+            ul_sys::ULCursor_kCursor_NorthPanning => Ok(Self::NorthPanning),
+            ul_sys::ULCursor_kCursor_NorthResize => Ok(Self::NorthResize),
+            ul_sys::ULCursor_kCursor_NorthSouthResize => Ok(Self::NorthSouthResize),
+            ul_sys::ULCursor_kCursor_NorthWestPanning => Ok(Self::NorthWestPanning),
+            ul_sys::ULCursor_kCursor_NorthWestResize => Ok(Self::NorthWestResize),
+            ul_sys::ULCursor_kCursor_NorthWestSouthEastResize => Ok(Self::NorthWestSouthEastResize),
+            ul_sys::ULCursor_kCursor_NotAllowed => Ok(Self::NotAllowed),
+            ul_sys::ULCursor_kCursor_Pointer => Ok(Self::Pointer),
+            ul_sys::ULCursor_kCursor_Progress => Ok(Self::Progress),
+            ul_sys::ULCursor_kCursor_RowResize => Ok(Self::RowResize),
+            ul_sys::ULCursor_kCursor_SouthEastPanning => Ok(Self::SouthEastPanning),
+            ul_sys::ULCursor_kCursor_SouthEastResize => Ok(Self::SouthEastResize),
+            ul_sys::ULCursor_kCursor_SouthPanning => Ok(Self::SouthPanning),
+            ul_sys::ULCursor_kCursor_SouthResize => Ok(Self::SouthResize),
+            ul_sys::ULCursor_kCursor_SouthWestPanning => Ok(Self::SouthWestPanning),
+            ul_sys::ULCursor_kCursor_SouthWestResize => Ok(Self::SouthWestResize),
+            ul_sys::ULCursor_kCursor_VerticalText => Ok(Self::VerticalText),
+            ul_sys::ULCursor_kCursor_Wait => Ok(Self::Wait),
+            ul_sys::ULCursor_kCursor_WestPanning => Ok(Self::WestPanning),
+            ul_sys::ULCursor_kCursor_WestResize => Ok(Self::WestResize),
+            ul_sys::ULCursor_kCursor_ZoomIn => Ok(Self::ZoomIn),
+            ul_sys::ULCursor_kCursor_ZoomOut => Ok(Self::ZoomOut),
+            _ => Err(()),
+        }
+    }
+}
 
 /// Rendering details for a View, to be used with your own GPUDriver
 ///
@@ -130,6 +235,7 @@ impl TryFrom<ul_sys::ULMessageLevel> for ConsoleMessageLevel {
 
 /// Configuration to be used when creating a [`View`].
 pub struct ViewConfig {
+    lib: Arc<Library>,
     internal: ul_sys::ULViewConfig,
 }
 
@@ -150,7 +256,7 @@ impl ViewConfig {
 impl Drop for ViewConfig {
     fn drop(&mut self) {
         unsafe {
-            ul_sys::ulDestroyViewConfig(self.internal);
+            self.lib.ultralight().ulDestroyViewConfig(self.internal);
         }
     }
 }
@@ -296,51 +402,71 @@ impl ViewConfigBuilder {
     /// Builds the [`ViewConfig`] struct using the settings configured in this builder.
     ///
     /// Returns [`None`] if failed to create [`ViewConfig`].
-    pub fn build(self) -> Option<ViewConfig> {
-        let internal = unsafe { ul_sys::ulCreateViewConfig() };
+    pub fn build(self, lib: Arc<Library>) -> Option<ViewConfig> {
+        let internal = unsafe { lib.ultralight().ulCreateViewConfig() };
 
         if internal.is_null() {
             return None;
         }
 
-        set_config!(internal, self.is_accelerated, ulViewConfigSetIsAccelerated);
-        set_config!(internal, self.is_transparent, ulViewConfigSetIsTransparent);
+        set_config!(
+            internal,
+            self.is_accelerated,
+            lib.ultralight().ulViewConfigSetIsAccelerated
+        );
+        set_config!(
+            internal,
+            self.is_transparent,
+            lib.ultralight().ulViewConfigSetIsTransparent
+        );
         set_config!(
             internal,
             self.initial_device_scale,
-            ulViewConfigSetInitialDeviceScale
+            lib.ultralight().ulViewConfigSetInitialDeviceScale
         );
-        set_config!(internal, self.initial_focus, ulViewConfigSetInitialFocus);
-        set_config!(internal, self.enable_images, ulViewConfigSetEnableImages);
+        set_config!(
+            internal,
+            self.initial_focus,
+            lib.ultralight().ulViewConfigSetInitialFocus
+        );
+        set_config!(
+            internal,
+            self.enable_images,
+            lib.ultralight().ulViewConfigSetEnableImages
+        );
         set_config!(
             internal,
             self.enable_javascript,
-            ulViewConfigSetEnableJavaScript
+            lib.ultralight().ulViewConfigSetEnableJavaScript
         );
         set_config_str!(
             internal,
             self.font_family_standard,
-            ulViewConfigSetFontFamilyStandard
+            lib.ultralight().ulViewConfigSetFontFamilyStandard
         );
         set_config_str!(
             internal,
             self.font_family_fixed,
-            ulViewConfigSetFontFamilyFixed
+            lib.ultralight().ulViewConfigSetFontFamilyFixed
         );
         set_config_str!(
             internal,
             self.font_family_serif,
-            ulViewConfigSetFontFamilySerif
+            lib.ultralight().ulViewConfigSetFontFamilySerif
         );
         set_config_str!(
             internal,
             self.font_family_sans_serif,
-            ulViewConfigSetFontFamilySansSerif
+            lib.ultralight().ulViewConfigSetFontFamilySansSerif
         );
-        set_config_str!(internal, self.user_agent, ulViewConfigSetUserAgent);
+        set_config_str!(
+            internal,
+            self.user_agent,
+            lib.ultralight().ulViewConfigSetUserAgent
+        );
         // set_config!(internal, self.display_id, ulViewConfigSetDisplayId);
 
-        Some(ViewConfig { internal })
+        Some(ViewConfig { lib, internal })
     }
 }
 
@@ -361,6 +487,7 @@ impl ViewConfigBuilder {
 /// When using the GPU renderer, you would get the underlying render target
 /// and texture information via [`View::render_target`].
 pub struct View {
+    lib: Arc<Library>,
     internal: ul_sys::ULView,
     need_to_destroy: bool,
 }
@@ -368,11 +495,12 @@ pub struct View {
 impl View {
     /// Helper internal function to allow getting a reference to a managed
     /// session.
-    pub(crate) unsafe fn from_raw(raw: ul_sys::ULView) -> Option<Self> {
+    pub(crate) unsafe fn from_raw(lib: Arc<Library>, raw: ul_sys::ULView) -> Option<Self> {
         if raw.is_null() {
             None
         } else {
             Some(Self {
+                lib,
                 internal: raw,
                 need_to_destroy: false,
             })
@@ -388,7 +516,8 @@ impl View {
         view_config: &ViewConfig,
         session: Option<&Session>,
     ) -> Option<Self> {
-        let internal = ul_sys::ulCreateView(
+        let lib = view_config.lib.clone();
+        let internal = lib.ultralight().ulCreateView(
             renderer,
             width,
             height,
@@ -400,6 +529,7 @@ impl View {
             None
         } else {
             Some(Self {
+                lib,
                 internal,
                 need_to_destroy: true,
             })
@@ -408,6 +538,7 @@ impl View {
 
     /// Returns the underlying [`ul_sys::ULView`] struct, to be used locally for
     /// calling the underlying C API.
+    #[allow(dead_code)]
     pub(crate) unsafe fn to_ul(&self) -> ul_sys::ULView {
         self.internal
     }
@@ -417,55 +548,59 @@ impl View {
     /// Get the URL of the current page loaded into this View, if any.
     pub fn url(&self) -> Result<String, CreationError> {
         unsafe {
-            let url_string = ul_sys::ulViewGetURL(self.internal);
-            UlString::copy_raw_to_string(url_string)
+            let url_string = self.lib.ultralight().ulViewGetURL(self.internal);
+            UlString::copy_raw_to_string(&self.lib, url_string)
         }
     }
 
     /// Get the title of the current page loaded into this View, if any.
     pub fn title(&self) -> Result<String, CreationError> {
         unsafe {
-            let title_string = ul_sys::ulViewGetTitle(self.internal);
-            UlString::copy_raw_to_string(title_string)
+            let title_string = self.lib.ultralight().ulViewGetTitle(self.internal);
+            UlString::copy_raw_to_string(&self.lib, title_string)
         }
     }
 
     /// Get the width of the View, in pixels.
     pub fn width(&self) -> u32 {
-        unsafe { ul_sys::ulViewGetWidth(self.internal) }
+        unsafe { self.lib.ultralight().ulViewGetWidth(self.internal) }
     }
 
     /// Get the height of the View, in pixels.
     pub fn height(&self) -> u32 {
-        unsafe { ul_sys::ulViewGetHeight(self.internal) }
+        unsafe { self.lib.ultralight().ulViewGetHeight(self.internal) }
     }
 
     /// Get the device scale, ie. the amount to scale page units to screen pixels.
     ///
     /// For example, a value of 1.0 is equivalent to 100% zoom. A value of 2.0 is 200% zoom.
     pub fn device_scale(&self) -> f64 {
-        unsafe { ul_sys::ulViewGetDeviceScale(self.internal) }
+        unsafe { self.lib.ultralight().ulViewGetDeviceScale(self.internal) }
     }
 
     /// Set the device scale.
     pub fn set_device_scale(&self, scale: f64) {
-        unsafe { ul_sys::ulViewSetDeviceScale(self.internal, scale) }
+        unsafe {
+            self.lib
+                .ultralight()
+                .ulViewSetDeviceScale(self.internal, scale)
+        }
     }
 
     /// Whether or not the View is GPU-accelerated. If this is false,
     /// the page will be rendered via the CPU renderer.
     pub fn is_accelerated(&self) -> bool {
-        unsafe { ul_sys::ulViewIsAccelerated(self.internal) }
+        unsafe { self.lib.ultralight().ulViewIsAccelerated(self.internal) }
     }
 
     /// Whether or not the View supports transparent backgrounds.
     pub fn is_transparent(&self) -> bool {
-        unsafe { ul_sys::ulViewIsTransparent(self.internal) }
+        unsafe { self.lib.ultralight().ulViewIsTransparent(self.internal) }
     }
 
     /// Check if the main frame of the page is currently loading.
     pub fn is_loading(&self) -> bool {
-        unsafe { ul_sys::ulViewIsLoading(self.internal) }
+        unsafe { self.lib.ultralight().ulViewIsLoading(self.internal) }
     }
 
     /// Get the RenderTarget for the View.
@@ -473,7 +608,9 @@ impl View {
     /// Only valid when the view is accelerated, and will return [`None`] otherwise.
     pub fn render_target(&self) -> Option<RenderTarget> {
         if self.is_accelerated() {
-            Some(unsafe { RenderTarget::from(ul_sys::ulViewGetRenderTarget(self.internal)) })
+            Some(unsafe {
+                RenderTarget::from(self.lib.ultralight().ulViewGetRenderTarget(self.internal))
+            })
         } else {
             None
         }
@@ -485,11 +622,11 @@ impl View {
     pub fn surface(&self) -> Option<Surface> {
         if !self.is_accelerated() {
             unsafe {
-                let surface = ul_sys::ulViewGetSurface(self.internal);
+                let surface = self.lib.ultralight().ulViewGetSurface(self.internal);
                 if surface.is_null() {
                     None
                 } else {
-                    Some(Surface::from_raw(surface))
+                    Some(Surface::from_raw(self.lib.clone(), surface))
                 }
             }
         } else {
@@ -500,8 +637,10 @@ impl View {
     /// Load a raw string of HTML, the View will navigate to it as a new page.
     pub fn load_html(&self, html: &str) -> Result<(), CreationError> {
         unsafe {
-            let ul_string = UlString::from_str(html)?;
-            ul_sys::ulViewLoadHTML(self.internal, ul_string.to_ul());
+            let ul_string = UlString::from_str(self.lib.clone(), html)?;
+            self.lib
+                .ultralight()
+                .ulViewLoadHTML(self.internal, ul_string.to_ul());
         }
         Ok(())
     }
@@ -511,8 +650,10 @@ impl View {
     /// You can use File URLs (eg, file:///page.html) as well.
     pub fn load_url(&self, url: &str) -> Result<(), CreationError> {
         unsafe {
-            let ul_string = UlString::from_str(url)?;
-            ul_sys::ulViewLoadURL(self.internal, ul_string.to_ul());
+            let ul_string = UlString::from_str(self.lib.clone(), url)?;
+            self.lib
+                .ultralight()
+                .ulViewLoadURL(self.internal, ul_string.to_ul());
         }
         Ok(())
     }
@@ -524,7 +665,9 @@ impl View {
     /// * `height` - The new height in pixels.
     pub fn resize(&self, width: u32, height: u32) {
         unsafe {
-            ul_sys::ulViewResize(self.internal, width, height);
+            self.lib
+                .ultralight()
+                .ulViewResize(self.internal, width, height);
         }
     }
 
@@ -543,21 +686,21 @@ impl View {
     /// returned.
     pub fn evaluate_script(&self, script: &str) -> Result<Result<String, String>, CreationError> {
         unsafe {
-            let ul_script_string = UlString::from_str(script)?;
+            let ul_script_string = UlString::from_str(self.lib.clone(), script)?;
             // a dummy value, it will be replaced by the actual result
             let mut exception_string = 1 as ul_sys::ULString;
-            let result_string = ul_sys::ulViewEvaluateScript(
+            let result_string = self.lib.ultralight().ulViewEvaluateScript(
                 self.internal,
                 ul_script_string.to_ul(),
                 &mut exception_string as _,
             );
 
-            let has_exception = !ul_sys::ulStringIsEmpty(exception_string);
+            let has_exception = !self.lib.ultralight().ulStringIsEmpty(exception_string);
             if has_exception {
-                let exception_string = UlString::copy_raw_to_string(exception_string)?;
+                let exception_string = UlString::copy_raw_to_string(&self.lib, exception_string)?;
                 Ok(Err(exception_string))
             } else {
-                let result_string = UlString::copy_raw_to_string(result_string)?;
+                let result_string = UlString::copy_raw_to_string(&self.lib, result_string)?;
                 Ok(Ok(result_string))
             }
         }
@@ -565,58 +708,61 @@ impl View {
 
     /// Whether or not we can navigate backwards in history
     pub fn can_go_back(&self) -> bool {
-        unsafe { ul_sys::ulViewCanGoBack(self.internal) }
+        unsafe { self.lib.ultralight().ulViewCanGoBack(self.internal) }
     }
 
     /// Whether or not we can navigate forwards in history
     pub fn can_go_forward(&self) -> bool {
-        unsafe { ul_sys::ulViewCanGoForward(self.internal) }
+        unsafe { self.lib.ultralight().ulViewCanGoForward(self.internal) }
     }
 
     /// Navigate backwards in history
     pub fn go_back(&self) {
-        unsafe { ul_sys::ulViewGoBack(self.internal) }
+        unsafe { self.lib.ultralight().ulViewGoBack(self.internal) }
     }
 
     /// Navigate forwards in history
     pub fn go_forward(&self) {
-        unsafe { ul_sys::ulViewGoForward(self.internal) }
+        unsafe { self.lib.ultralight().ulViewGoForward(self.internal) }
     }
 
     /// Navigate to an arbitrary offset in history
     pub fn go_to_history_offset(&self, offset: i32) {
-        unsafe { ul_sys::ulViewGoToHistoryOffset(self.internal, offset) }
+        unsafe {
+            self.lib
+                .ultralight()
+                .ulViewGoToHistoryOffset(self.internal, offset)
+        }
     }
 
     /// Reload current page
     pub fn reload(&self) {
-        unsafe { ul_sys::ulViewReload(self.internal) }
+        unsafe { self.lib.ultralight().ulViewReload(self.internal) }
     }
 
     /// Stop all page loads
     pub fn stop(&self) {
-        unsafe { ul_sys::ulViewStop(self.internal) }
+        unsafe { self.lib.ultralight().ulViewStop(self.internal) }
     }
 
     /// Give focus to the View.
     ///
     /// You should call this to give visual indication that the View
     /// has input focus (changes active text selection colors, for example).
-
     pub fn focus(&self) {
-        unsafe { ul_sys::ulViewFocus(self.internal) }
+        unsafe { self.lib.ultralight().ulViewFocus(self.internal) }
     }
 
     /// Remove focus from the View and unfocus any focused input elements.
     ///
     /// You should call this to give visual indication that the View has lost input focus.
     pub fn unfocus(&self) {
-        unsafe { ul_sys::ulViewUnfocus(self.internal) }
+        unsafe { self.lib.ultralight().ulViewUnfocus(self.internal) }
     }
 
     /// Whether or not the View has focus.
     pub fn has_focus(&self) -> bool {
-        unsafe { ul_sys::ulViewHasFocus(self.internal) }
+        unsafe { self.lib.ultralight().ulViewHasFocus(self.internal) }
     }
 
     /// Whether or not the View has an input element with visible keyboard focus
@@ -625,7 +771,7 @@ impl View {
     /// You can use this to decide whether or not the View should consume
     /// keyboard input events (useful in games with mixed UI and key handling).
     pub fn has_input_focus(&self) -> bool {
-        unsafe { ul_sys::ulViewHasInputFocus(self.internal) }
+        unsafe { self.lib.ultralight().ulViewHasInputFocus(self.internal) }
     }
 
     /// Fire a keyboard event
@@ -633,29 +779,45 @@ impl View {
     /// Note that only [`KeyEventType::Char`](crate::event::KeyEventType::Char)
     /// events actually generate text in input fields.
     pub fn fire_key_event(&self, key_event: KeyEvent) {
-        unsafe { ul_sys::ulViewFireKeyEvent(self.internal, key_event.to_ul()) }
+        unsafe {
+            self.lib
+                .ultralight()
+                .ulViewFireKeyEvent(self.internal, key_event.to_ul())
+        }
     }
 
     /// Fire a mouse event
     pub fn fire_mouse_event(&self, mouse_event: MouseEvent) {
-        unsafe { ul_sys::ulViewFireMouseEvent(self.internal, mouse_event.to_ul()) }
+        unsafe {
+            self.lib
+                .ultralight()
+                .ulViewFireMouseEvent(self.internal, mouse_event.to_ul())
+        }
     }
 
     /// Fire a scroll event
     pub fn fire_scroll_event(&self, scroll_event: ScrollEvent) {
-        unsafe { ul_sys::ulViewFireScrollEvent(self.internal, scroll_event.to_ul()) }
+        unsafe {
+            self.lib
+                .ultralight()
+                .ulViewFireScrollEvent(self.internal, scroll_event.to_ul())
+        }
     }
 
     /// Get the display id of the View.
     pub fn get_display_id(&self) -> u32 {
-        unsafe { ul_sys::ulViewGetDisplayId(self.internal) }
+        unsafe { self.lib.ultralight().ulViewGetDisplayId(self.internal) }
     }
 
     /// Set the display id of the View.
     ///
     /// This should be called when the View is moved to another display.
     pub fn set_display_id(&self, display_id: u32) {
-        unsafe { ul_sys::ulViewSetDisplayId(self.internal, display_id) }
+        unsafe {
+            self.lib
+                .ultralight()
+                .ulViewSetDisplayId(self.internal, display_id)
+        }
     }
 
     // looking at the CPP header, the strings seems to be references
@@ -669,9 +831,9 @@ impl View {
         /// * `view: &View` - The view that fired the event (eg. self)
         /// * `title: String` - The new title
         pub fn set_change_title_callback(&self, callback: FnMut(view: &View, title: String)) :
-           ulViewSetChangeTitleCallback(ul_view: ul_sys::ULView, ul_title: ul_sys::ULString) {
-               let view = &View::from_raw(ul_view).unwrap();
-               let title = UlString::copy_raw_to_string(ul_title).unwrap();
+            [View::lib.ultralight()][s] ulViewSetChangeTitleCallback(ul_view: ul_sys::ULView, ul_title: ul_sys::ULString) {
+               let view = &View::from_raw(s.lib.clone(), ul_view).unwrap();
+               let title = UlString::copy_raw_to_string(&s.lib,ul_title).unwrap();
         }
     }
 
@@ -682,9 +844,9 @@ impl View {
         /// * `view: &View` - The view that fired the event (eg. self)
         /// * `url: String` - The new url
         pub fn set_change_url_callback(&self, callback: FnMut(view: &View, url: String)) :
-           ulViewSetChangeURLCallback(ul_view: ul_sys::ULView, ul_url: ul_sys::ULString) {
-               let view = &View::from_raw(ul_view).unwrap();
-               let url = UlString::copy_raw_to_string(ul_url).unwrap();
+            [View::lib.ultralight()][s] ulViewSetChangeURLCallback(ul_view: ul_sys::ULView, ul_url: ul_sys::ULString) {
+               let view = &View::from_raw(s.lib.clone(), ul_view).unwrap();
+               let url = UlString::copy_raw_to_string(&s.lib,ul_url).unwrap();
         }
     }
 
@@ -695,9 +857,9 @@ impl View {
         /// * `view: &View` - The view that fired the event (eg. self)
         /// * `tooltip: String` - The tooltip string
         pub fn set_change_tooltip_callback(&self, callback: FnMut(view: &View, tooltip: String)) :
-           ulViewSetChangeTooltipCallback(ul_view: ul_sys::ULView, ul_tooltip: ul_sys::ULString) {
-               let view = &View::from_raw(ul_view).unwrap();
-               let tooltip = UlString::copy_raw_to_string(ul_tooltip).unwrap();
+            [View::lib.ultralight()][s] ulViewSetChangeTooltipCallback(ul_view: ul_sys::ULView, ul_tooltip: ul_sys::ULString) {
+               let view = &View::from_raw(s.lib.clone(), ul_view).unwrap();
+               let tooltip = UlString::copy_raw_to_string(&s.lib,ul_tooltip).unwrap();
         }
     }
 
@@ -708,8 +870,8 @@ impl View {
         /// * `view: &View` - The view that fired the event (eg. self)
         /// * `cursor: Cursor` - The cursor type
         pub fn set_change_cursor_callback(&self, callback: FnMut(view: &View, cursor: Cursor)) :
-           ulViewSetChangeCursorCallback(ul_view: ul_sys::ULView, ul_cursor: ul_sys::ULCursor) {
-               let view = &View::from_raw(ul_view).unwrap();
+            [View::lib.ultralight()][s] ulViewSetChangeCursorCallback(ul_view: ul_sys::ULView, ul_cursor: ul_sys::ULCursor) {
+               let view = &View::from_raw(s.lib.clone(), ul_view).unwrap();
                let cursor = Cursor::try_from(ul_cursor).unwrap();
         }
     }
@@ -733,7 +895,7 @@ impl View {
                 line_number:u32,
                 column_number:u32,
                 source_id: String)) :
-           ulViewSetAddConsoleMessageCallback(
+            [View::lib.ultralight()][s] ulViewSetAddConsoleMessageCallback(
                ul_view: ul_sys::ULView,
                ul_message_source: ul_sys::ULMessageSource,
                ul_message_level: ul_sys::ULMessageLevel,
@@ -742,11 +904,11 @@ impl View {
                column_number :u32,
                ul_source_id: ul_sys::ULString
             ) {
-               let view = &View::from_raw(ul_view).unwrap();
+               let view = &View::from_raw(s.lib.clone(), ul_view).unwrap();
                let message_source = ConsoleMessageSource::try_from(ul_message_source).unwrap();
                let message_level = ConsoleMessageLevel::try_from(ul_message_level).unwrap();
-               let message = UlString::copy_raw_to_string(ul_message).unwrap();
-               let source_id = UlString::copy_raw_to_string(ul_source_id).unwrap();
+               let message = UlString::copy_raw_to_string(&s.lib,ul_message).unwrap();
+               let source_id = UlString::copy_raw_to_string(&s.lib,ul_source_id).unwrap();
         }
     }
 
@@ -787,16 +949,16 @@ impl View {
                 // TODO: should we change the return type?
                 //       since the new view will be owned by another overlay
             ) -> ret_view: Option<View>) :
-           ulViewSetCreateChildViewCallback(
+            [View::lib.ultralight()][s] ulViewSetCreateChildViewCallback(
                ul_view: ul_sys::ULView,
                ul_opener_url: ul_sys::ULString,
                ul_target_url: ul_sys::ULString,
                is_popup: bool,
                ul_popup_rect: ul_sys::ULIntRect
             ) -> ul_sys::ULView {
-               let view = &View::from_raw(ul_view).unwrap();
-               let opener_url = UlString::copy_raw_to_string(ul_opener_url).unwrap();
-               let target_url = UlString::copy_raw_to_string(ul_target_url).unwrap();
+               let view = &View::from_raw(s.lib.clone(), ul_view).unwrap();
+               let opener_url = UlString::copy_raw_to_string(&s.lib,ul_opener_url).unwrap();
+               let target_url = UlString::copy_raw_to_string(&s.lib,ul_target_url).unwrap();
                let popup_rect = Rect::from(ul_popup_rect);
         } {
             if let Some(ret_view) = ret_view {
@@ -838,13 +1000,13 @@ impl View {
                 // TODO: should we change the return type?
                 //       since the new view will be owned by another overlay
             ) -> ret_view: Option<View>) :
-            ulViewSetCreateInspectorViewCallback(
+            [View::lib.ultralight()][s] ulViewSetCreateInspectorViewCallback(
                ul_view: ul_sys::ULView,
                is_local: bool,
                ul_inspected_url: ul_sys::ULString
             ) -> ul_sys::ULView {
-               let view = &View::from_raw(ul_view).unwrap();
-                let inspected_url = UlString::copy_raw_to_string(ul_inspected_url).unwrap();
+               let view = &View::from_raw(s.lib.clone(), ul_view).unwrap();
+                let inspected_url = UlString::copy_raw_to_string(&s.lib,ul_inspected_url).unwrap();
         } {
             if let Some(ret_view) = ret_view {
                 ret_view.internal
@@ -867,14 +1029,14 @@ impl View {
                 frame_id: u64,
                 is_main_frame: bool,
                 url: String)) :
-           ulViewSetBeginLoadingCallback(
+            [View::lib.ultralight()][s] ulViewSetBeginLoadingCallback(
                ul_view: ul_sys::ULView,
                frame_id: u64,
                is_main_frame: bool,
                ul_url: ul_sys::ULString
             ) {
-               let view = &View::from_raw(ul_view).unwrap();
-               let url = UlString::copy_raw_to_string(ul_url).unwrap();
+               let view = &View::from_raw(s.lib.clone(), ul_view).unwrap();
+               let url = UlString::copy_raw_to_string(&s.lib,ul_url).unwrap();
         }
     }
 
@@ -891,14 +1053,14 @@ impl View {
                 frame_id: u64,
                 is_main_frame: bool,
                 url: String)) :
-           ulViewSetFinishLoadingCallback(
+            [View::lib.ultralight()][s] ulViewSetFinishLoadingCallback(
                ul_view: ul_sys::ULView,
                frame_id: u64,
                is_main_frame: bool,
                ul_url: ul_sys::ULString
             ) {
-               let view = &View::from_raw(ul_view).unwrap();
-               let url = UlString::copy_raw_to_string(ul_url).unwrap();
+               let view = &View::from_raw(s.lib.clone(), ul_view).unwrap();
+               let url = UlString::copy_raw_to_string(&s.lib,ul_url).unwrap();
         }
     }
 
@@ -921,7 +1083,7 @@ impl View {
                 description: String,
                 error_domain: String,
                 error_code: i32)) :
-           ulViewSetFailLoadingCallback(
+            [View::lib.ultralight()][s] ulViewSetFailLoadingCallback(
                ul_view: ul_sys::ULView,
                frame_id: u64,
                is_main_frame: bool,
@@ -930,10 +1092,10 @@ impl View {
                ul_error_domain: ul_sys::ULString,
                error_code: i32
             ) {
-               let view = &View::from_raw(ul_view).unwrap();
-               let url = UlString::copy_raw_to_string(ul_url).unwrap();
-               let description = UlString::copy_raw_to_string(ul_description).unwrap();
-               let error_domain = UlString::copy_raw_to_string(ul_error_domain).unwrap();
+               let view = &View::from_raw(s.lib.clone(), ul_view).unwrap();
+               let url = UlString::copy_raw_to_string(&s.lib,ul_url).unwrap();
+               let description = UlString::copy_raw_to_string(&s.lib,ul_description).unwrap();
+               let error_domain = UlString::copy_raw_to_string(&s.lib,ul_error_domain).unwrap();
         }
     }
 
@@ -959,14 +1121,14 @@ impl View {
                 frame_id: u64,
                 is_main_frame: bool,
                 url: String)) :
-           ulViewSetWindowObjectReadyCallback(
+            [View::lib.ultralight()][s] ulViewSetWindowObjectReadyCallback(
                ul_view: ul_sys::ULView,
                frame_id: u64,
                is_main_frame: bool,
                ul_url: ul_sys::ULString
             ) {
-               let view = &View::from_raw(ul_view).unwrap();
-               let url = UlString::copy_raw_to_string(ul_url).unwrap();
+               let view = &View::from_raw(s.lib.clone(), ul_view).unwrap();
+               let url = UlString::copy_raw_to_string(&s.lib,ul_url).unwrap();
         }
     }
 
@@ -986,14 +1148,14 @@ impl View {
                 frame_id: u64,
                 is_main_frame: bool,
                 url: String)) :
-           ulViewSetDOMReadyCallback(
+            [View::lib.ultralight()][s] ulViewSetDOMReadyCallback(
                ul_view: ul_sys::ULView,
                frame_id: u64,
                is_main_frame: bool,
                ul_url: ul_sys::ULString
             ) {
-               let view = &View::from_raw(ul_view).unwrap();
-               let url = UlString::copy_raw_to_string(ul_url).unwrap();
+               let view = &View::from_raw(s.lib.clone(), ul_view).unwrap();
+               let url = UlString::copy_raw_to_string(&s.lib, ul_url).unwrap();
         }
     }
 
@@ -1003,8 +1165,8 @@ impl View {
         /// # Callback Arguments
         /// * `view: &View` - The view that fired the event (eg. self)
         pub fn set_update_history_callback(&self, callback: FnMut(view: &View)) :
-           ulViewSetUpdateHistoryCallback(ul_view: ul_sys::ULView) {
-               let view = &View::from_raw(ul_view).unwrap();
+           [View::lib.ultralight()][s] ulViewSetUpdateHistoryCallback(ul_view: ul_sys::ULView) {
+               let view = &View::from_raw(s.lib.clone(), ul_view).unwrap();
         }
     }
 
@@ -1014,13 +1176,17 @@ impl View {
     /// This flag is automatically set whenever the page content changes but
     /// you can set it directly in case you need to force a repaint.
     pub fn set_needs_paint(&self, needs_paint: bool) {
-        unsafe { ul_sys::ulViewSetNeedsPaint(self.internal, needs_paint) }
+        unsafe {
+            self.lib
+                .ultralight()
+                .ulViewSetNeedsPaint(self.internal, needs_paint)
+        }
     }
 
     /// Whether or not this View should be repainted during the next call to
     /// [`Renderer::render`](crate::renderer::Renderer::render).
     pub fn needs_paint(&self) -> bool {
-        unsafe { ul_sys::ulViewGetNeedsPaint(self.internal) }
+        unsafe { self.lib.ultralight().ulViewGetNeedsPaint(self.internal) }
     }
 
     /// Create an Inspector View to inspect / debug this View locally
@@ -1034,7 +1200,9 @@ impl View {
     /// call the callback only if an inspector view is not currently active.
     pub fn create_local_inspector_view(&self) {
         unsafe {
-            ul_sys::ulViewCreateLocalInspectorView(self.internal);
+            self.lib
+                .ultralight()
+                .ulViewCreateLocalInspectorView(self.internal);
         }
     }
 }
@@ -1043,7 +1211,7 @@ impl Drop for View {
     fn drop(&mut self) {
         if self.need_to_destroy {
             unsafe {
-                ul_sys::ulDestroyView(self.internal);
+                self.lib.ultralight().ulDestroyView(self.internal);
             }
         }
     }

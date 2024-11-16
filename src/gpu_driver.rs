@@ -10,6 +10,7 @@
 //! This library also have a custom GPU driver for [`glium`].
 
 #[cfg(feature = "glium")]
+#[cfg_attr(docsrs, doc(cfg(feature = "glium")))]
 pub mod glium;
 
 use std::slice;
@@ -380,16 +381,16 @@ pub trait GpuDriver {
 
 platform_set_interface_macro! {
     #[inline]
-    pub(crate) set_gpu_driver<GpuDriver>(gpu_driver -> GPUDRIVER) -> ulPlatformSetGPUDriver(ULGPUDriver) {
+    pub(crate) set_gpu_driver<GpuDriver>(lib, gpu_driver -> GPUDRIVER) -> ulPlatformSetGPUDriver(ULGPUDriver) {
         begin_synchronize() -> () {}
         end_synchronize() -> () {}
         next_texture_id(() -> u32) -> () {}
         create_texture((texture_id: u32, ul_bitmap: ul_sys::ULBitmap)) -> ((texture_id: u32, bitmap: OwnedBitmap)) {
-            let mut bitmap = Bitmap::from_raw(ul_bitmap).unwrap();
+            let mut bitmap = Bitmap::from_raw(lib.clone(), ul_bitmap).unwrap();
             let bitmap = OwnedBitmap::from_bitmap(&mut bitmap).unwrap();
         }
         update_texture((texture_id: u32, ul_bitmap: ul_sys::ULBitmap)) -> ((texture_id: u32, bitmap: OwnedBitmap)) {
-            let mut bitmap = Bitmap::from_raw(ul_bitmap).unwrap();
+            let mut bitmap = Bitmap::from_raw(lib.clone(), ul_bitmap).unwrap();
             let bitmap = OwnedBitmap::from_bitmap(&mut bitmap).unwrap();
         }
         destroy_texture((texture_id: u32)) -> ((texture_id: u32)) {}

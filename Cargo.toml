@@ -1,6 +1,6 @@
 [package]
 name = "ul-next"
-version = "0.4.1"
+version = "0.5.0"
 edition = "2021"
 authors = ["Amjad Alsharafi", "Francisco Ayala Le Brun"]
 description = "Ultralight Rust bindings"
@@ -9,34 +9,40 @@ readme = "README.md"
 repository = "https://github.com/Amjad50/ul-next"
 keywords = ["ultralight", "webview", "webrender", "graphics", "rendering"]
 categories = ["graphics", "rendering", "api-bindings"]
-rust-version = "1.60.0"
+rust-version = "1.67.0"
 
 [features]
-default = []
-docs_only = ["ul-sys/docs_only"]
+default = ["appcore_linked"]
+# Link the Ultralight libraries at build time (except AppCore)
+linked = ["ul-sys/linked"]
+# Link the AppCore library at build time (will include all other libraries)
+appcore_linked = ["linked", "ul-sys/appcore_linked"]
+# Support loading the Ultralight libraries at runtime manually
+loaded = ["ul-sys/loaded"]
 # link only Ultralight unique libraries, and not other dependancies that
 # may be available in the host system (such as libglib and libgio)
 only-ul-deps = ["ul-sys/only-ul-deps"]
 
 [dependencies]
-ul-sys = { version="=1.4.0-beta.158d65c", package="ul-next-sys", path="sys" }
+ul-sys = { version="=1.4.0-beta.158d65c-2", package="ul-next-sys", path="sys", default-features = false }
 scopeguard = "1.1"
-lazy_static = "1.4"
-glium = { version="0.34", default-features=false, features=[], optional=true }
-thiserror = "1.0"
+lazy_static = "1.5"
+glium = { version="0.36", default-features=false, features=[], optional=true }
+thiserror = "2.0"
 
 [dev-dependencies]
 png = "0.17"
-glium = "0.34"
-winit = "0.29"
-glutin-winit = "0.4"
+glium = "0.36"
+winit = "0.30"
+glutin-winit = "0.5"
 
 [[example]]
 name = "glium_custom_gpu_driver"
 required-features = ["glium"]
 
 [workspace]
-members = ["sys"]
+members = ["sys", "sys/generate"]
 
 [package.metadata.docs.rs]
-features = ["docs_only"]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
