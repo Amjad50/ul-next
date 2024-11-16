@@ -1,6 +1,6 @@
 [package]
 name = "ul-next"
-version = "0.5.1"
+version = "0.5.2"
 edition = "2021"
 authors = ["Amjad Alsharafi", "Francisco Ayala Le Brun"]
 description = "Ultralight Rust bindings"
@@ -46,3 +46,4 @@ members = ["sys", "sys/generate"]
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+rust-args = ["--cfg", "docsrs"]

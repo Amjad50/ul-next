@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.5.1] (based on `1.4.0b.158d65c`)
+## [0.5.1] & [0.5.2] (based on `1.4.0b.158d65c`)
 ### Fixed
 - Fixed small bug in building docs for `docs.rs`.
 
@@ -46,7 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added examples for the library.
 - Added implementation for `glium` driver using OpenGL.
 
-[unreleased]: https://github.com/Amjad50/ul-next/compare/v0.5.1...HEAD
+[unreleased]: https://github.com/Amjad50/ul-next/compare/v0.5.2...HEAD
+[0.5.2]: https://github.com/Amjad50/ul-next/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/Amjad50/ul-next/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/Amjad50/ul-next/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/Amjad50/ul-next/compare/v0.4.0...v0.4.1
