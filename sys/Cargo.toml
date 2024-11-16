@@ -1,6 +1,6 @@
 [package]
 name = "ul-next-sys"
-version = "1.4.0-beta.158d65c-2"
+version = "1.4.0-beta.158d65c-3"
 edition = "2021"
 authors = ["Amjad Alsharafi"]
 description = "sys bindings for Ultralight, for ul-next"
@@ -33,3 +33,5 @@ libloading = {version = "0.8.5", optional = true}
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+rustc-args = ["--cfg", "docsrs"]
+
