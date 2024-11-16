@@ -60,6 +60,8 @@ pub mod library {
         ///
         /// The library must be installed in the system library path, or loadable by name.
         ///
+        /// All the other related libraries (`UltralightCore` and `WebCore`) must be loadable as well.
+        ///
         /// This is preferred over [`linked()`][Library::linked] when the application
         /// wants to gracefully handle the absence of the library, or handle loading it dynamically.
         ///
@@ -93,6 +95,8 @@ pub mod library {
         ///
         /// The libraries must be installed in the system library path, or loadable by name.
         ///
+        /// All the other related libraries (`Ultralight`, `UltralightCore` and `WebCore`) must be loadable as well.
+        ///
         /// This comes with all functions, `Ultralight` and `AppCore`.
         /// If you are handling your own rendering and windowing,
         /// you may want to use [`load()`][Library::load] only instead
@@ -123,7 +127,7 @@ pub mod library {
 
         /// Loads the Ultralight library from the given path/name of the library.
         ///
-        ///
+        /// All the other related libraries (`UltralightCore` and `WebCore`) must be loadable as well.
         ///
         /// # Safety
         ///
@@ -146,6 +150,7 @@ pub mod library {
 
         /// Loads the AppCore and Ultralight libraries from the given path/name of the library.
         ///
+        /// All the other related libraries (`Ultralight`, `UltralightCore` and `WebCore`) must be loadable as well.
         ///
         /// This will load all functions, `Ultralight` and `AppCore`.
         /// If you are handling your own rendering and windowing,

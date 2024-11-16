@@ -1,4 +1,6 @@
-use crate::{bitmap::Bitmap, error::CreationError, string::UlString, Rect};
+use std::sync::Arc;
+
+use crate::{bitmap::Bitmap, error::CreationError, string::UlString, Library, Rect};
 
 /// User-defined image source to display custom images on a web-page.
 ///
@@ -57,12 +59,14 @@ use crate::{bitmap::Bitmap, error::CreationError, string::UlString, Rect};
 /// If you modify the texture or bitmap pixels after creating the ImageSource, you should call
 /// [`ImageSource::invalidate`] to notify the library that the image should be redrawn.
 pub struct ImageSource {
+    lib: Arc<Library>,
     internal: ul_sys::ULImageSource,
 }
 
 impl ImageSource {
     /// Create an image source from a GPU texture with optional backing bitmap.
     /// # Arguments
+    /// * `lib` - The ultralight library.
     /// * `width` - The width of the texture in pixels (used for layout).
     /// * `height` - The height of the texture in pixels (used for layout).
     /// * `texture_id` - The GPU texture identifier to bind when drawing the quad for this image.
@@ -73,6 +77,7 @@ impl ImageSource {
     ///              the image using the CPU renderer or when pixel data is needed for other
     ///              purposes. You should update this bitmap when the texture changes.
     pub fn create_from_texture(
+        lib: Arc<Library>,
         width: u32,
         height: u32,
         texture_id: u32,
@@ -80,7 +85,7 @@ impl ImageSource {
         bitmap: Option<Bitmap>,
     ) -> Result<ImageSource, CreationError> {
         let internal = unsafe {
-            ul_sys::ulCreateImageSourceFromTexture(
+            lib.ultralight().ulCreateImageSourceFromTexture(
                 width,
                 height,
                 texture_id,
@@ -96,19 +101,26 @@ impl ImageSource {
         if internal.is_null() {
             Err(CreationError::NullReference)
         } else {
-            Ok(Self { internal })
+            Ok(Self { lib, internal })
         }
     }
 
     /// Create an image source from a bitmap.
     /// # Arguments
+    /// * `lib` - The ultralight library.
     /// * `bitmap` - The bitmap to sample from when drawing the image.
-    pub fn create_from_bitmap(bitmap: Bitmap) -> Result<ImageSource, CreationError> {
-        let internal = unsafe { ul_sys::ulCreateImageSourceFromBitmap(bitmap.to_ul()) };
+    pub fn create_from_bitmap(
+        lib: Arc<Library>,
+        bitmap: Bitmap,
+    ) -> Result<ImageSource, CreationError> {
+        let internal = unsafe {
+            lib.ultralight()
+                .ulCreateImageSourceFromBitmap(bitmap.to_ul())
+        };
         if internal.is_null() {
             Err(CreationError::NullReference)
         } else {
-            Ok(Self { internal })
+            Ok(Self { lib, internal })
         }
     }
 
@@ -116,7 +128,7 @@ impl ImageSource {
     /// and should be redrawn
     pub fn invalidate(&self) {
         unsafe {
-            ul_sys::ulImageSourceInvalidate(self.internal);
+            self.lib.ultralight().ulImageSourceInvalidate(self.internal);
         }
     }
 }
@@ -124,7 +136,7 @@ impl ImageSource {
 impl Drop for ImageSource {
     fn drop(&mut self) {
         unsafe {
-            ul_sys::ulDestroyImageSource(self.internal);
+            self.lib.ultralight().ulDestroyImageSource(self.internal);
         }
     }
 }
@@ -133,6 +145,8 @@ impl Drop for ImageSource {
 ///
 /// This is used to lookup ImageSource instances when they are requested by a web-page.
 pub mod image_source_provider {
+    use crate::Library;
+    use std::sync::Arc;
 
     /// Add an image source to the provider.
     pub fn add_image_source(
@@ -140,17 +154,21 @@ pub mod image_source_provider {
         image_source: &super::ImageSource,
     ) -> Result<(), super::CreationError> {
         unsafe {
-            let id_str = super::UlString::from_str(id)?;
-            ul_sys::ulImageSourceProviderAddImageSource(id_str.to_ul(), image_source.internal);
+            let id_str = super::UlString::from_str(image_source.lib.clone(), id)?;
+            image_source
+                .lib
+                .ultralight()
+                .ulImageSourceProviderAddImageSource(id_str.to_ul(), image_source.internal);
         }
         Ok(())
     }
 
     /// Remove an image source from the provider.
-    pub fn remove_image_source(id: &str) -> Result<(), super::CreationError> {
+    pub fn remove_image_source(lib: &Arc<Library>, id: &str) -> Result<(), super::CreationError> {
         unsafe {
-            let id_str = super::UlString::from_str(id)?;
-            ul_sys::ulImageSourceProviderRemoveImageSource(id_str.to_ul());
+            let id_str = super::UlString::from_str(lib.clone(), id)?;
+            lib.ultralight()
+                .ulImageSourceProviderRemoveImageSource(id_str.to_ul());
         }
         Ok(())
     }

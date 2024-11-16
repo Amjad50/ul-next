@@ -7,7 +7,7 @@
 //! Before creating a renderer [`Renderer::create`] you must supply a custom
 //! [`GpuDriver`](crate::gpu_driver::GpuDriver) in
 //! [`platform::set_gpu_driver`](crate::platform::set_gpu_driver).
-use std::ffi::CString;
+use std::{ffi::CString, sync::Arc};
 
 use crate::{
     config::Config,
@@ -15,12 +15,14 @@ use crate::{
     event::{GamepadAxisEvent, GamepadButtonEvent, GamepadEvent},
     string::UlString,
     view::{View, ViewConfig},
+    Library,
 };
 
 /// A Session stores local data such as cookies, local storage, and application
 /// cache for one or more [`View`]s.
 /// (See [`Renderer::create_session`](crate::renderer::Renderer::create_session))
 pub struct Session {
+    lib: Arc<Library>,
     internal: ul_sys::ULSession,
     need_to_destroy: bool,
 
@@ -34,21 +36,26 @@ impl Session {
     /// Internal function helper to create a session.
     /// (See [`Renderer::create_session`](crate::renderer::Renderer::create_session))
     pub(crate) unsafe fn create(
+        lib: Arc<Library>,
         renderer: ul_sys::ULRenderer,
         is_persistent: bool,
         name: &str,
     ) -> Result<Self, CreationError> {
-        let ul_string_name = UlString::from_str(name)?;
-        let internal = ul_sys::ulCreateSession(renderer, is_persistent, ul_string_name.to_ul());
+        let ul_string_name = UlString::from_str(lib.clone(), name)?;
+        let internal =
+            lib.ultralight()
+                .ulCreateSession(renderer, is_persistent, ul_string_name.to_ul());
 
         if internal.is_null() {
             return Err(CreationError::NullReference);
         }
 
-        let id = ul_sys::ulSessionGetId(internal);
-        let disk_path = UlString::copy_raw_to_string(ul_sys::ulSessionGetDiskPath(internal))?;
+        let id = lib.ultralight().ulSessionGetId(internal);
+        let disk_path =
+            UlString::copy_raw_to_string(&lib, lib.ultralight().ulSessionGetDiskPath(internal))?;
 
         Ok(Self {
+            lib,
             internal,
             need_to_destroy: true,
 
@@ -61,17 +68,22 @@ impl Session {
 
     /// Helper internal function to allow getting a reference to a managed
     /// session.
-    pub(crate) unsafe fn from_raw(raw: ul_sys::ULSession) -> Result<Self, CreationError> {
+    pub(crate) unsafe fn from_raw(
+        lib: Arc<Library>,
+        raw: ul_sys::ULSession,
+    ) -> Result<Self, CreationError> {
         if raw.is_null() {
             return Err(CreationError::NullReference);
         }
 
-        let id = ul_sys::ulSessionGetId(raw);
-        let disk_path = UlString::copy_raw_to_string(ul_sys::ulSessionGetDiskPath(raw))?;
-        let name = UlString::copy_raw_to_string(ul_sys::ulSessionGetName(raw))?;
-        let is_persistent = ul_sys::ulSessionIsPersistent(raw);
+        let id = lib.ultralight().ulSessionGetId(raw);
+        let disk_path =
+            UlString::copy_raw_to_string(&lib, lib.ultralight().ulSessionGetDiskPath(raw))?;
+        let name = UlString::copy_raw_to_string(&lib, lib.ultralight().ulSessionGetName(raw))?;
+        let is_persistent = lib.ultralight().ulSessionIsPersistent(raw);
 
         Ok(Self {
+            lib,
             internal: raw,
             need_to_destroy: false,
 
@@ -115,7 +127,7 @@ impl Drop for Session {
     fn drop(&mut self) {
         if self.need_to_destroy {
             unsafe {
-                ul_sys::ulDestroySession(self.internal);
+                self.lib.ultralight().ulDestroySession(self.internal);
             }
         }
     }
@@ -128,23 +140,28 @@ impl Drop for Session {
 /// The [`App`](crate::app::App) struct will automatically create a `Renderer`
 /// and perform all rendering within its run loop.
 pub struct Renderer {
+    lib: Arc<Library>,
     internal: ul_sys::ULRenderer,
 
     need_to_destroy: bool,
-
     default_session: Session,
 }
 
 impl Renderer {
     /// Internal helper to get a reference to the underlying Renderer.
-    pub(crate) unsafe fn from_raw(raw: ul_sys::ULRenderer) -> Result<Self, CreationError> {
-        let raw_default_session = ul_sys::ulDefaultSession(raw);
+    #[allow(dead_code)]
+    pub(crate) unsafe fn from_raw(
+        lib: Arc<Library>,
+        raw: ul_sys::ULRenderer,
+    ) -> Result<Self, CreationError> {
+        let raw_default_session = lib.ultralight().ulDefaultSession(raw);
         if raw_default_session.is_null() {
             return Err(CreationError::NullReference);
         }
-        let default_session = Session::from_raw(raw_default_session)?;
+        let default_session = Session::from_raw(lib.clone(), raw_default_session)?;
 
         Ok(Self {
+            lib,
             internal: raw,
             need_to_destroy: false,
             default_session,
@@ -177,13 +194,16 @@ impl Renderer {
     /// it creates its own renderer and provides default implementations for
     /// various platform handlers automatically.
     pub fn create(config: Config) -> Result<Self, CreationError> {
-        let internal = unsafe { ul_sys::ulCreateRenderer(config.to_ul()) };
+        let lib = config.lib();
+        let internal = unsafe { lib.ultralight().ulCreateRenderer(config.to_ul()) };
         if internal.is_null() {
             return Err(CreationError::NullReference);
         }
-        let default_session = unsafe { Session::from_raw(ul_sys::ulDefaultSession(internal)) }?;
+        let default_session =
+            unsafe { Session::from_raw(lib.clone(), lib.ultralight().ulDefaultSession(internal)) }?;
 
         Ok(Self {
+            lib: lib.clone(),
             internal,
             need_to_destroy: true,
             default_session,
@@ -195,7 +215,7 @@ impl Renderer {
     /// Update timers and dispatch internal callbacks. You should call this often
     /// from your main application loop.
     pub fn update(&self) {
-        unsafe { ul_sys::ulUpdate(self.internal) };
+        unsafe { self.lib.ultralight().ulUpdate(self.internal) };
     }
 
     /// Render all active views to their respective render-targets/surfaces.
@@ -206,20 +226,20 @@ impl Renderer {
     /// [`View`]s are only repainted if they actually need painting.
     /// (See [`View::needs_paint`](crate::view::View::needs_paint))
     pub fn render(&self) {
-        unsafe { ul_sys::ulRender(self.internal) };
+        unsafe { self.lib.ultralight().ulRender(self.internal) };
     }
 
     /// Attempt to release as much memory as possible.
     /// Don't call this from any callbacks or driver code.
     pub fn purge_memory(&self) {
-        unsafe { ul_sys::ulPurgeMemory(self.internal) };
+        unsafe { self.lib.ultralight().ulPurgeMemory(self.internal) };
     }
 
     /// Print detailed memory usage statistics to the log.
     /// (See [`platform::set_logger`](crate::platform::set_logger) or
     /// [`platform::enable_default_logger`](crate::platform::enable_default_logger))
     pub fn log_memory_usage(&self) {
-        unsafe { ul_sys::ulLogMemoryUsage(self.internal) };
+        unsafe { self.lib.ultralight().ulLogMemoryUsage(self.internal) };
     }
 
     /// Create a Session to store local data in (such as cookies, local storage,
@@ -240,7 +260,7 @@ impl Renderer {
         is_persistent: bool,
         name: &str,
     ) -> Result<Session, CreationError> {
-        unsafe { Session::create(self.internal, is_persistent, name) }
+        unsafe { Session::create(self.lib.clone(), self.internal, is_persistent, name) }
     }
 
     /// Get the default Session. This session is persistent (backed to disk) and has the name
@@ -284,7 +304,7 @@ impl Renderer {
     ) -> Result<bool, CreationError> {
         unsafe {
             let c_str = CString::new(address)?;
-            Ok(ul_sys::ulStartRemoteInspectorServer(
+            Ok(self.lib.ultralight().ulStartRemoteInspectorServer(
                 self.internal,
                 c_str.as_ptr(),
                 port,
@@ -297,7 +317,11 @@ impl Renderer {
     /// This updates animations, smooth scroll, and `window.requestAnimationFrame()` for all Views
     /// matching the display id.
     pub fn refresh_display(&self, display_id: u32) {
-        unsafe { ul_sys::ulRefreshDisplay(self.internal, display_id) }
+        unsafe {
+            self.lib
+                .ultralight()
+                .ulRefreshDisplay(self.internal, display_id)
+        }
     }
 
     /// Describe the details of a gamepad, to be used with FireGamepadEvent and related
@@ -318,9 +342,9 @@ impl Renderer {
         button_count: u32,
     ) -> Result<(), CreationError> {
         unsafe {
-            let ul_string_id = UlString::from_str(id)?;
+            let ul_string_id = UlString::from_str(self.lib.clone(), id)?;
 
-            ul_sys::ulSetGamepadDetails(
+            self.lib.ultralight().ulSetGamepadDetails(
                 self.internal,
                 index,
                 ul_string_id.to_ul(),
@@ -338,7 +362,11 @@ impl Renderer {
     ///
     /// See <https://developer.mozilla.org/en-US/docs/Web/API/Gamepad>
     pub fn fire_gamepad_event(&self, event: GamepadEvent) -> Result<(), CreationError> {
-        unsafe { ul_sys::ulFireGamepadEvent(self.internal, event.to_ul()) };
+        unsafe {
+            self.lib
+                .ultralight()
+                .ulFireGamepadEvent(self.internal, event.to_ul())
+        };
         Ok(())
     }
 
@@ -348,7 +376,11 @@ impl Renderer {
     ///
     /// See <https://developer.mozilla.org/en-US/docs/Web/API/Gamepad/axes>
     pub fn fire_gamepad_axis_event(&self, event: GamepadAxisEvent) -> Result<(), CreationError> {
-        unsafe { ul_sys::ulFireGamepadAxisEvent(self.internal, event.to_ul()) };
+        unsafe {
+            self.lib
+                .ultralight()
+                .ulFireGamepadAxisEvent(self.internal, event.to_ul())
+        };
         Ok(())
     }
 
@@ -361,7 +393,11 @@ impl Renderer {
         &self,
         event: GamepadButtonEvent,
     ) -> Result<(), CreationError> {
-        unsafe { ul_sys::ulFireGamepadButtonEvent(self.internal, event.to_ul()) };
+        unsafe {
+            self.lib
+                .ultralight()
+                .ulFireGamepadButtonEvent(self.internal, event.to_ul())
+        };
         Ok(())
     }
 }
@@ -370,7 +406,7 @@ impl Drop for Renderer {
     fn drop(&mut self) {
         if self.need_to_destroy {
             unsafe {
-                ul_sys::ulDestroyRenderer(self.internal);
+                self.lib.ultralight().ulDestroyRenderer(self.internal);
             }
         }
     }
