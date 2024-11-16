@@ -1,6 +1,6 @@
 [package]
 name = "ul-next"
-version = "0.4.1"
+version = "0.5.0"
 edition = "2021"
 authors = ["Amjad Alsharafi", "Francisco Ayala Le Brun"]
 description = "Ultralight Rust bindings"
@@ -24,17 +24,17 @@ loaded = ["ul-sys/loaded"]
 only-ul-deps = ["ul-sys/only-ul-deps"]
 
 [dependencies]
-ul-sys = { version="=1.4.0-beta.158d65c", package="ul-next-sys", path="sys", default-features = false }
+ul-sys = { version="=1.4.0-beta.158d65c-2", package="ul-next-sys", path="sys", default-features = false }
 scopeguard = "1.1"
-lazy_static = "1.4"
-glium = { version="0.34", default-features=false, features=[], optional=true }
-thiserror = "1.0"
+lazy_static = "1.5"
+glium = { version="0.36", default-features=false, features=[], optional=true }
+thiserror = "2.0"
 
 [dev-dependencies]
 png = "0.17"
-glium = "0.34"
-winit = "0.29"
-glutin-winit = "0.4"
+glium = "0.36"
+winit = "0.30"
+glutin-winit = "0.5"
 
 [[example]]
 name = "glium_custom_gpu_driver"

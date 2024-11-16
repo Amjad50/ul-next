@@ -7,7 +7,7 @@ use ul_next::{config::Config, platform, renderer::Renderer, view::ViewConfig};
 fn main() {
     let lib = Library::linked();
 
-    let event_loop = winit::event_loop::EventLoopBuilder::new().build().unwrap();
+    let event_loop = winit::event_loop::EventLoop::builder().build().unwrap();
 
     let (_window, display) = glium::backend::glutin::SimpleWindowBuilder::new()
         .with_title("Glium tutorial #5")
@@ -154,6 +154,7 @@ fn main() {
     };
 
     update_and_draw(None);
+    #[allow(deprecated)]
     event_loop
         .run(move |event, target| {
             match event {
