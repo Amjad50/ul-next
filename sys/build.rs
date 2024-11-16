@@ -1,6 +1,6 @@
 fn main() {
     // skip if we are building doc
-    #[cfg(not(feature = "docs_only"))]
+    #[cfg(all(not(docsrs), any(feature = "linked", feature = "appcore_linked")))]
     {
         use std::path::PathBuf;
         use std::{env, fs};
@@ -96,6 +96,9 @@ fn main() {
 
         println!("cargo:rustc-link-lib=dylib=Ultralight");
         println!("cargo:rustc-link-lib=dylib=WebCore");
-        println!("cargo:rustc-link-lib=dylib=AppCore");
+        #[cfg(feature = "appcore_linked")]
+        {
+            println!("cargo:rustc-link-lib=dylib=AppCore");
+        }
     }
 }

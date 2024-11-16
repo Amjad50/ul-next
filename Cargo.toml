@@ -36,7 +36,7 @@ name = "glium_custom_gpu_driver"
 required-features = ["glium"]
 
 [workspace]
-members = ["sys"]
+members = ["sys", "sys/generate"]
 
 [package.metadata.docs.rs]
 features = ["docs_only"]
