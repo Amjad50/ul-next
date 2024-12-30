@@ -58,7 +58,7 @@ impl JSPropertyAttributes {
 }
 
 pub struct JSObject<'a> {
-    value: JSValue<'a>,
+    pub(crate) value: JSValue<'a>,
 }
 
 impl<'a> JSObject<'a> {

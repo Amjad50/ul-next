@@ -1,7 +1,7 @@
 use core::fmt;
 use std::ops::Deref;
 
-use super::{JSContext, JSString, JSTypedArray, JSTypedArrayType};
+use super::{JSContext, JSObject, JSString, JSTypedArray, JSTypedArrayType};
 
 pub trait AsJSValue<'a>: Deref<Target = JSValue<'a>> + AsRef<JSValue<'a>> {
     fn into_value(self) -> JSValue<'a>;
@@ -260,6 +260,119 @@ impl<'a> JSValue<'a> {
         match typed_array.ty().ok() {
             None | Some(JSTypedArrayType::None) => false,
             Some(_) => true,
+        }
+    }
+}
+
+impl<'a> JSValue<'a> {
+    pub fn as_object(&self) -> Result<JSObject<'a>, JSValue<'a>> {
+        let mut exception = std::ptr::null();
+
+        let result = unsafe {
+            self.ctx.lib.ultralight().JSValueToObject(
+                self.ctx.internal,
+                self.internal,
+                &mut exception,
+            )
+        };
+
+        if !exception.is_null() {
+            Err(JSValue::from_raw(self.ctx, exception))
+        } else if result.is_null() {
+            Err(JSValue::new_string(
+                self.ctx,
+                "Failed to convert value to object",
+            ))
+        } else {
+            Ok(JSObject {
+                value: JSValue::from_raw(self.ctx, result),
+            })
+        }
+    }
+
+    pub fn as_string(&self) -> Result<JSString, JSValue<'a>> {
+        let mut exception = std::ptr::null();
+
+        let result = unsafe {
+            self.ctx.lib.ultralight().JSValueToStringCopy(
+                self.ctx.internal,
+                self.internal,
+                &mut exception,
+            )
+        };
+
+        if !exception.is_null() {
+            Err(JSValue::from_raw(self.ctx, exception))
+        } else if result.is_null() {
+            Err(JSValue::new_string(
+                self.ctx,
+                "Failed to convert value to string",
+            ))
+        } else {
+            Ok(JSString::copy_from_raw(self.ctx.lib.clone(), result))
+        }
+    }
+
+    pub fn as_number(&self) -> Result<f64, JSValue<'a>> {
+        let mut exception = std::ptr::null();
+
+        let result = unsafe {
+            self.ctx.lib.ultralight().JSValueToNumber(
+                self.ctx.internal,
+                self.internal,
+                &mut exception,
+            )
+        };
+
+        if !exception.is_null() {
+            Err(JSValue::from_raw(self.ctx, exception))
+        } else {
+            Ok(result)
+        }
+    }
+
+    pub fn as_boolean(&self) -> bool {
+        unsafe {
+            self.ctx
+                .lib
+                .ultralight()
+                .JSValueToBoolean(self.ctx.internal, self.internal)
+        }
+    }
+
+    pub fn as_typed_array(&self) -> Result<JSTypedArray<'a>, JSValue<'a>> {
+        if self.is_typed_array() {
+            let object = self.as_object()?;
+
+            Ok(JSTypedArray {
+                value: object.value,
+            })
+        } else {
+            Err(JSValue::new_string(self.ctx, "Value is not a typed array"))
+        }
+    }
+
+    pub fn to_json_string(&self) -> Result<JSString, JSValue<'a>> {
+        let mut exception = std::ptr::null();
+
+        let result = unsafe {
+            self.ctx.lib.ultralight().JSValueCreateJSONString(
+                self.ctx.internal,
+                self.internal,
+                0,
+                &mut exception,
+            )
+        };
+
+        if !exception.is_null() {
+            Err(JSValue::from_raw(self.ctx, exception))
+        } else if result.is_null() {
+            Err(JSValue::new_string(
+                self.ctx,
+                "Failed to convert value to JSON string",
+            ))
+        } else {
+            Ok(JSString::from_raw(self.ctx.lib.clone(), result))
         }
     }
 }
