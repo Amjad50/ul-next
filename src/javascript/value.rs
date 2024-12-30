@@ -35,7 +35,7 @@ impl<'a> JSValue<'a> {
         }
     }
 
-    pub fn copy_from_raw(ctx: &'a JSContext, value: ul_sys::JSValueRef) -> Self {
+    pub(crate) fn copy_from_raw(ctx: &'a JSContext, value: ul_sys::JSValueRef) -> Self {
         assert!(!value.is_null());
 
         unsafe {
@@ -145,7 +145,7 @@ impl<'a> JSValue<'a> {
     }
 }
 
-impl<'a> JSValue<'a> {
+impl JSValue<'_> {
     pub fn get_type(&self) -> JSType {
         let ty = unsafe {
             self.ctx

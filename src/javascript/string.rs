@@ -46,6 +46,10 @@ impl JSString {
         }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn len(&self) -> usize {
         unsafe { self.lib.ultralight().JSStringGetLength(self.internal) }
     }
@@ -60,7 +64,7 @@ impl From<&JSString> for String {
                 .JSStringGetMaximumUTF8CStringSize(string.internal)
         };
 
-        let mut buffer: Vec<u8> = Vec::with_capacity(max_size as usize);
+        let mut buffer: Vec<u8> = Vec::with_capacity(max_size);
 
         unsafe {
             let actual_size = string.lib.ultralight().JSStringGetUTF8CString(

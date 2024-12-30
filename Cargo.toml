@@ -9,7 +9,7 @@ readme = "README.md"
 repository = "https://github.com/Amjad50/ul-next"
 keywords = ["ultralight", "webview", "webrender", "graphics", "rendering"]
 categories = ["graphics", "rendering", "api-bindings"]
-rust-version = "1.67.0"
+rust-version = "1.70.0"
 
 [features]
 default = ["appcore_linked"]

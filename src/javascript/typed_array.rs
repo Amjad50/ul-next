@@ -41,7 +41,7 @@ impl<'a> JSTypedArray<'a> {
         };
 
         if !exception.is_null() {
-            return Err(JSValue::from_raw(ctx, exception));
+            Err(JSValue::from_raw(ctx, exception))
         } else if value.is_null() {
             return Err(JSValue::new_string(ctx, "Failed to create typed array"));
         } else {
@@ -86,7 +86,7 @@ impl<'a> JSTypedArray<'a> {
         };
 
         if !exception.is_null() {
-            return Err(JSValue::from_raw(ctx, exception));
+            Err(JSValue::from_raw(ctx, exception))
         } else if value.is_null() {
             return Err(JSValue::new_string(ctx, "Failed to create typed array"));
         } else {
@@ -112,6 +112,10 @@ impl<'a> JSTypedArray<'a> {
         } else {
             Ok(result)
         }
+    }
+
+    pub fn is_empty(&self) -> Result<bool, JSValue<'a>> {
+        self.len().map(|len| len == 0)
     }
 
     pub fn byte_length(&self) -> Result<usize, JSValue<'a>> {

@@ -75,7 +75,7 @@ impl JSContext {
         };
 
         if !exception.is_null() {
-            return Err(JSValue::copy_from_raw(self, exception));
+            Err(JSValue::copy_from_raw(self, exception))
         } else if ret.is_null() {
             Err(JSValue::new_string(self, "Failed to evaluate script"))
         } else {

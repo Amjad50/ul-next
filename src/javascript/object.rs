@@ -38,7 +38,7 @@ impl JSPropertyAttributes {
         self
     }
 
-    pub(crate) fn to_raw(&self) -> u32 {
+    pub(crate) fn to_raw(self) -> u32 {
         let mut raw = 0;
 
         if self.read_only {
@@ -336,7 +336,7 @@ impl<'a> JSObject<'a> {
     }
 }
 
-impl<'a> JSObject<'a> {
+impl JSObject<'_> {
     pub fn get_property(&self, name: &str) -> Result<JSValue, JSValue> {
         let name = JSString::new(self.ctx.lib.clone(), name);
         let mut exception = std::ptr::null();
@@ -593,6 +593,10 @@ impl<'a> JSPropertyNameArray<'a> {
             internal: array,
             ctx,
         }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     pub fn len(&self) -> usize {
