@@ -1,8 +1,15 @@
 use core::fmt;
+use std::ops::Deref;
 
-use super::{JSContext, JSString};
+use super::{JSContext, JSString, JSTypedArray, JSTypedArrayType};
+
+pub trait AsJSValue<'a>: Deref<Target = JSValue<'a>> + AsRef<JSValue<'a>> {
+    fn into_value(self) -> JSValue<'a>;
+    fn as_value(&self) -> &JSValue<'a>;
+}
 
 #[repr(u32)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum JSType {
     Undefined = ul_sys::JSType_kJSTypeUndefined,
     Null = ul_sys::JSType_kJSTypeNull,
@@ -237,6 +244,22 @@ impl<'a> JSValue<'a> {
                 .lib
                 .ultralight()
                 .JSValueIsBoolean(self.ctx.internal, self.internal)
+        }
+    }
+
+    pub fn is_typed_array(&self) -> bool {
+        // Note: we are creating the object `JSTypedArray` here to check if the value is a typed
+        // array, i.e. it shouldn't be used to call any other `JSTypedArray` methods.
+        let typed_array = JSTypedArray {
+            value: Self {
+                internal: self.internal,
+                ctx: self.ctx,
+            },
+        };
+
+        match typed_array.ty().ok() {
+            None | Some(JSTypedArrayType::None) => false,
+            Some(_) => true,
         }
     }
 }

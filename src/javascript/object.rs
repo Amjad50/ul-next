@@ -5,7 +5,7 @@ use std::{
 
 use crate::Library;
 
-use super::{JSContext, JSString, JSValue};
+use super::{AsJSValue, JSContext, JSString, JSValue};
 
 // TODO: major hack, not sure how to get access to the Library
 //       from inside the trampoline
@@ -85,10 +85,6 @@ impl<'a> JSObject<'a> {
         Self {
             value: JSValue::from_raw(ctx, obj),
         }
-    }
-
-    pub fn into_value(self) -> JSValue<'a> {
-        self.value
     }
 
     pub fn new_function_with_callback<F>(ctx: &'a JSContext, callback: F) -> Self
@@ -570,6 +566,16 @@ impl<'a> Deref for JSObject<'a> {
     type Target = JSValue<'a>;
 
     fn deref(&self) -> &Self::Target {
+        &self.value
+    }
+}
+
+impl<'a> AsJSValue<'a> for JSObject<'a> {
+    fn into_value(self) -> JSValue<'a> {
+        self.value
+    }
+
+    fn as_value(&self) -> &JSValue<'a> {
         &self.value
     }
 }
