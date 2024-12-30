@@ -3,11 +3,16 @@ use std::ops::Deref;
 
 use super::{JSContext, JSObject, JSString, JSTypedArray, JSTypedArrayType};
 
+/// A trait for converting a type into a [`JSValue`].
+///
+/// Types implementing this trait are [`JSValue`], we are wrapping them in other types
+/// to provide specific functionality.
 pub trait AsJSValue<'a>: Deref<Target = JSValue<'a>> + AsRef<JSValue<'a>> {
     fn into_value(self) -> JSValue<'a>;
     fn as_value(&self) -> &JSValue<'a>;
 }
 
+/// An enum identifying the type of a [`JSValue`].
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum JSType {
@@ -20,6 +25,11 @@ pub enum JSType {
     Symbol = ul_sys::JSType_kJSTypeSymbol,
 }
 
+/// A JavaScript value.
+///
+/// This is the basic type for managing values in JavaScriptCore. It can represent
+/// any JavaScript value, including `undefined`, `null`, booleans, numbers, strings,
+/// symbols, objects, and arrays.
 pub struct JSValue<'a> {
     pub(crate) internal: ul_sys::JSValueRef,
     pub(crate) ctx: &'a JSContext,
@@ -59,6 +69,7 @@ impl<'a> JSValue<'a> {
 }
 
 impl<'a> JSValue<'a> {
+    /// Creates a Javascript `undefined` value.
     pub fn new_undefined(ctx: &'a JSContext) -> Self {
         let value = unsafe { ctx.lib.ultralight().JSValueMakeUndefined(ctx.internal) };
 
@@ -68,6 +79,7 @@ impl<'a> JSValue<'a> {
         }
     }
 
+    /// Creates a Javascript `null` value.
     pub fn new_null(ctx: &'a JSContext) -> Self {
         let value = unsafe { ctx.lib.ultralight().JSValueMakeNull(ctx.internal) };
 
@@ -77,6 +89,7 @@ impl<'a> JSValue<'a> {
         }
     }
 
+    /// Creates a Javascript boolean value.
     pub fn new_boolean(ctx: &'a JSContext, value: bool) -> Self {
         let value = unsafe { ctx.lib.ultralight().JSValueMakeBoolean(ctx.internal, value) };
 
@@ -86,6 +99,7 @@ impl<'a> JSValue<'a> {
         }
     }
 
+    /// Creates a Javascript numeric value.
     pub fn new_number(ctx: &'a JSContext, value: f64) -> Self {
         let value = unsafe { ctx.lib.ultralight().JSValueMakeNumber(ctx.internal, value) };
 
@@ -95,8 +109,11 @@ impl<'a> JSValue<'a> {
         }
     }
 
-    pub fn new_symbol(ctx: &'a JSContext, value: &str) -> Self {
-        let value = JSString::new(ctx.lib.clone(), value);
+    /// Creates a unique Javascript symbol object.
+    ///
+    /// `description` is a string that describes the symbol.
+    pub fn new_symbol(ctx: &'a JSContext, description: &str) -> Self {
+        let value = JSString::new(ctx.lib.clone(), description);
 
         let value = unsafe {
             ctx.lib
@@ -110,6 +127,23 @@ impl<'a> JSValue<'a> {
         }
     }
 
+    /// Converts a Javascript string object to a Javascript value.
+    pub fn from_jsstring(ctx: &'a JSContext, value: JSString) -> Self {
+        let value = unsafe {
+            ctx.lib
+                .ultralight()
+                .JSValueMakeString(ctx.internal, value.internal)
+        };
+
+        Self {
+            internal: value,
+            ctx,
+        }
+    }
+
+    /// Creates a Javascript string value from a Rust string.
+    ///
+    /// If you have already `JSString` object, use [`JSValue::from_jsstring`] instead.
     pub fn new_string(ctx: &'a JSContext, value: &str) -> Self {
         let value = JSString::new(ctx.lib.clone(), value);
 
@@ -125,6 +159,9 @@ impl<'a> JSValue<'a> {
         }
     }
 
+    /// Creates a JavaScript value from a JSON formatted string.
+    ///
+    /// Returns [`None`] if the JSON string is invalid.
     pub fn new_from_json(ctx: &'a JSContext, value: &str) -> Option<Self> {
         let value = JSString::new(ctx.lib.clone(), value);
 
@@ -146,6 +183,7 @@ impl<'a> JSValue<'a> {
 }
 
 impl JSValue<'_> {
+    /// Returns a JavaScript value's type.
     pub fn get_type(&self) -> JSType {
         let ty = unsafe {
             self.ctx
@@ -166,6 +204,7 @@ impl JSValue<'_> {
         }
     }
 
+    /// Returns `true` if the value is `undefined`.
     pub fn is_undefined(&self) -> bool {
         unsafe {
             self.ctx
@@ -175,6 +214,7 @@ impl JSValue<'_> {
         }
     }
 
+    /// Returns `true` if the value is `null`.
     pub fn is_null(&self) -> bool {
         unsafe {
             self.ctx
@@ -184,6 +224,7 @@ impl JSValue<'_> {
         }
     }
 
+    /// Returns `true` if the value is a JavaScript date object.
     pub fn is_date(&self) -> bool {
         unsafe {
             self.ctx
@@ -193,6 +234,7 @@ impl JSValue<'_> {
         }
     }
 
+    /// Returns `true` if the value is a JavaScript array.
     pub fn is_array(&self) -> bool {
         unsafe {
             self.ctx
@@ -202,6 +244,7 @@ impl JSValue<'_> {
         }
     }
 
+    /// Returns `true` if the value's type is the symbol type
     pub fn is_symbol(&self) -> bool {
         unsafe {
             self.ctx
@@ -211,6 +254,7 @@ impl JSValue<'_> {
         }
     }
 
+    /// Returns `true` if the value is an object.
     pub fn is_object(&self) -> bool {
         unsafe {
             self.ctx
@@ -220,6 +264,7 @@ impl JSValue<'_> {
         }
     }
 
+    /// Returns `true` if the value is a string.
     pub fn is_string(&self) -> bool {
         unsafe {
             self.ctx
@@ -229,6 +274,7 @@ impl JSValue<'_> {
         }
     }
 
+    /// Returns `true` if the value is a number.
     pub fn is_number(&self) -> bool {
         unsafe {
             self.ctx
@@ -238,6 +284,7 @@ impl JSValue<'_> {
         }
     }
 
+    /// Returns `true` if the value is a boolean.
     pub fn is_boolean(&self) -> bool {
         unsafe {
             self.ctx
@@ -247,6 +294,7 @@ impl JSValue<'_> {
         }
     }
 
+    /// Returns `true` if the value is a Typed Array.
     pub fn is_typed_array(&self) -> bool {
         // Note: we are creating the object `JSTypedArray` here to check if the value is a typed
         // array, i.e. it shouldn't be used to call any other `JSTypedArray` methods.
@@ -265,6 +313,9 @@ impl JSValue<'_> {
 }
 
 impl<'a> JSValue<'a> {
+    /// Converts a JavaScript value to object.
+    ///
+    /// Returns an [`Err`] if an exception is thrown.
     pub fn as_object(&self) -> Result<JSObject<'a>, JSValue<'a>> {
         let mut exception = std::ptr::null();
 
@@ -290,6 +341,9 @@ impl<'a> JSValue<'a> {
         }
     }
 
+    /// Converts a JavaScript value to string.
+    ///
+    /// Returns an [`Err`] if an exception is thrown.
     pub fn as_string(&self) -> Result<JSString, JSValue<'a>> {
         let mut exception = std::ptr::null();
 
@@ -313,6 +367,9 @@ impl<'a> JSValue<'a> {
         }
     }
 
+    /// Converts a JavaScript value to number.
+    ///
+    /// Returns an [`Err`] if an exception is thrown.
     pub fn as_number(&self) -> Result<f64, JSValue<'a>> {
         let mut exception = std::ptr::null();
 
@@ -331,6 +388,7 @@ impl<'a> JSValue<'a> {
         }
     }
 
+    /// Converts a JavaScript value to boolean.
     pub fn as_boolean(&self) -> bool {
         unsafe {
             self.ctx
@@ -340,6 +398,9 @@ impl<'a> JSValue<'a> {
         }
     }
 
+    /// Converts a JavaScript value to a typed array.
+    ///
+    /// Returns an [`Err`] if the value is not a typed array, or if an exception is thrown.
     pub fn as_typed_array(&self) -> Result<JSTypedArray<'a>, JSValue<'a>> {
         if self.is_typed_array() {
             let object = self.as_object()?;
@@ -352,6 +413,9 @@ impl<'a> JSValue<'a> {
         }
     }
 
+    /// Converts a JavaScript value to JSON serialized representation of a JS value.
+    ///
+    /// Returns an [`Err`] if an exception is thrown.
     pub fn to_json_string(&self) -> Result<JSString, JSValue<'a>> {
         let mut exception = std::ptr::null();
 

@@ -11,28 +11,40 @@ use super::{AsJSValue, JSContext, JSString, JSValue};
 //       from inside the trampoline
 static LIBRARY: OnceLock<Arc<Library>> = OnceLock::new();
 
+/// Attributes for JavaScript properties.
+///
+/// Used in [`JSObject::set_property`] and [`JSObject::set_property_for_key`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct JSPropertyAttributes {
+    /// Specifies that a property is read-only.
     pub read_only: bool,
+    /// Specifies that a property should not be enumerated by `JSPropertyEnumerators`
+    /// and JavaScript `for...in` loops.
     pub dont_enum: bool,
+    /// Specifies that the delete operation should fail on a property.
     pub dont_delete: bool,
 }
 
 impl JSPropertyAttributes {
+    /// Creates empty attributes.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Specifies that a property is read-only.
     pub fn read_only(mut self, read_only: bool) -> Self {
         self.read_only = read_only;
         self
     }
 
+    /// Specifies that a property should not be enumerated by `JSPropertyEnumerators`
+    /// and JavaScript `for...in` loops.
     pub fn dont_enum(mut self, dont_enum: bool) -> Self {
         self.dont_enum = dont_enum;
         self
     }
 
+    /// Specifies that the delete operation should fail on a property.
     pub fn dont_delete(mut self, dont_delete: bool) -> Self {
         self.dont_delete = dont_delete;
         self
@@ -57,6 +69,7 @@ impl JSPropertyAttributes {
     }
 }
 
+/// A JavaScript object.
 pub struct JSObject<'a> {
     pub(crate) value: JSValue<'a>,
 }
@@ -73,6 +86,7 @@ impl<'a> JSObject<'a> {
         }
     }
 
+    /// Create a new default javascript object.
     pub fn new(ctx: &'a JSContext) -> Self {
         let obj = unsafe {
             ctx.lib.ultralight().JSObjectMake(
@@ -87,6 +101,11 @@ impl<'a> JSObject<'a> {
         }
     }
 
+    /// Create a JavaScript function with a given callback as its implementation.
+    ///
+    /// Results in a JSObject that is a function. The object's prototype will be the default function prototype.
+    ///
+    /// This can be used to execute Rust code from JavaScript.
     pub fn new_function_with_callback<F>(ctx: &'a JSContext, callback: F) -> Self
     where
         for<'c> F:
@@ -183,6 +202,13 @@ impl<'a> JSObject<'a> {
         }
     }
 
+    /// Creates a function with a given script as its body.
+    ///
+    /// Use this method when you want to execute a script repeatedly,
+    /// to avoid the cost of re-parsing the script before each execution.
+    ///
+    /// Can return [`Err`] if there was an exception when creating the function or
+    /// if the script or parameters contain syntax errors.
     pub fn new_function(
         ctx: &'a JSContext,
         name: Option<&str>,
@@ -231,6 +257,7 @@ impl<'a> JSObject<'a> {
         }
     }
 
+    /// Creates a JavaScript Array object.
     pub fn new_array(ctx: &'a JSContext, items: &[JSValue]) -> Result<Self, JSValue<'a>> {
         let items_ptrs: Vec<_> = items.iter().map(|v| v.internal).collect();
 
@@ -256,6 +283,7 @@ impl<'a> JSObject<'a> {
         }
     }
 
+    /// Tests whether an object can be called as a function.
     pub fn is_function(&self) -> bool {
         unsafe {
             self.value
@@ -266,6 +294,7 @@ impl<'a> JSObject<'a> {
         }
     }
 
+    /// Tests whether an object can be called as a constructor.
     pub fn is_constructor(&self) -> bool {
         unsafe {
             self.value
@@ -276,6 +305,10 @@ impl<'a> JSObject<'a> {
         }
     }
 
+    /// Calls an object as a function.
+    ///
+    /// Return the [`JSValue`] that results from calling object as a function,
+    /// or [`Err`] if an exception is thrown or object is not a function.
     pub fn call_as_function(
         &self,
         this: Option<&JSObject>,
@@ -308,6 +341,10 @@ impl<'a> JSObject<'a> {
         }
     }
 
+    /// Calls an object as a constructor.
+    ///
+    /// Return the [`JSObject`] that results from calling object as a constructor,
+    /// or [`Err`] if an exception is thrown or object is not a constructor.
     pub fn call_as_constructor(&self, args: &[JSValue]) -> Result<JSObject, JSValue> {
         let mut exception = std::ptr::null();
 
@@ -337,6 +374,10 @@ impl<'a> JSObject<'a> {
 }
 
 impl JSObject<'_> {
+    /// Gets a property from an object by name.
+    ///
+    /// Returns the property's value if object has the property, otherwise the undefined value,
+    /// or [`Err`] if an exception is thrown.
     pub fn get_property(&self, name: &str) -> Result<JSValue, JSValue> {
         let name = JSString::new(self.ctx.lib.clone(), name);
         let mut exception = std::ptr::null();
@@ -359,6 +400,14 @@ impl JSObject<'_> {
         }
     }
 
+    /// Gets a property from an object by numeric index.
+    ///
+    /// Returns the property's value if object has the property, otherwise the undefined value,
+    /// or [`Err`] if an exception is thrown.
+    ///
+    /// Calling [`JSObject::get_property_at_index`] is equivalent to calling [`JSObject::get_property`]
+    /// with a string containing `index`, but [`JSObject::get_property_at_index`] provides optimized
+    /// access to numeric properties.
     pub fn get_property_at_index(&self, index: u32) -> Result<JSValue, JSValue> {
         let mut exception = std::ptr::null();
 
@@ -380,6 +429,9 @@ impl JSObject<'_> {
         }
     }
 
+    /// Sets a property on an object by name.
+    ///
+    /// Returns [`Err`] if an exception is thrown.
     pub fn set_property(
         &self,
         name: &str,
@@ -407,6 +459,13 @@ impl JSObject<'_> {
         }
     }
 
+    /// Sets a property on an object by numeric index.
+    ///
+    /// Returns [`Err`] if an exception is thrown.
+    ///
+    /// Calling [`JSObject::set_property_at_index`] is equivalent to calling
+    /// [`JSObject::set_property`] with a string containing `index`,
+    /// but [`JSObject::set_property_at_index`] provides optimized access to numeric properties.
     pub fn set_property_at_index(&self, index: u32, value: &JSValue) -> Result<(), JSValue> {
         let mut exception = std::ptr::null();
 
@@ -427,6 +486,7 @@ impl JSObject<'_> {
         }
     }
 
+    /// Gets the names of an object's enumerable properties.
     pub fn get_property_names(&self) -> JSPropertyNameArray {
         let names = unsafe {
             self.ctx
@@ -438,6 +498,7 @@ impl JSObject<'_> {
         JSPropertyNameArray::from_raw(self.ctx, names)
     }
 
+    /// Tests whether an object has a property.
     pub fn has_property(&self, name: &str) -> bool {
         let name = JSString::new(self.ctx.lib.clone(), name);
 
@@ -450,26 +511,36 @@ impl JSObject<'_> {
         }
     }
 
-    pub fn delete_property(&self, name: &str) -> Result<(), JSValue> {
+    /// Deletes a property from an object by name.
+    ///
+    /// Returns `true` if the property was deleted, `false` if the property was not present,
+    /// or it had [`JSPropertyAttributes::dont_delete`] set, or [`Err`] if an exception is thrown.
+    pub fn delete_property(&self, name: &str) -> Result<bool, JSValue> {
         let name = JSString::new(self.ctx.lib.clone(), name);
         let mut exception = std::ptr::null();
 
-        unsafe {
+        let result = unsafe {
             self.ctx.lib.ultralight().JSObjectDeleteProperty(
                 self.ctx.internal,
                 self.internal as _,
                 name.internal,
                 &mut exception,
-            );
-        }
+            )
+        };
 
         if !exception.is_null() {
             Err(JSValue::from_raw(self.ctx, exception))
         } else {
-            Ok(())
+            Ok(result)
         }
     }
 
+    /// Gets a property from an object using a [`JSValue`] as the property key.
+    ///
+    /// Returns the property's value if object has the property, otherwise the undefined value,
+    /// or [`Err`] if an exception is thrown.
+    ///
+    /// This function is the same as performing `object[propertyKey](propertyKey)` from JavaScript.
     pub fn get_property_for_key(&self, key: &JSValue) -> Result<JSValue, JSValue> {
         let mut exception = std::ptr::null();
 
@@ -491,6 +562,11 @@ impl JSObject<'_> {
         }
     }
 
+    /// Sets a property on an object using a [`JSValue`] as the property key.
+    ///
+    /// Returns [`Err`] if an exception is thrown.
+    ///
+    /// This function is the same as performing `object[propertyKey](propertyKey) = value` from JavaScript.
     pub fn set_property_for_key(
         &self,
         key: &JSValue,
@@ -517,6 +593,9 @@ impl JSObject<'_> {
         }
     }
 
+    /// Tests whether an object has a given property using a [`JSValue`] as the property key.
+    ///
+    /// This function is the same as performing `propertyKey in object` from JavaScript.
     pub fn has_property_for_key(&self, key: &JSValue) -> Result<bool, JSValue> {
         let mut exception = std::ptr::null();
 
@@ -536,6 +615,12 @@ impl JSObject<'_> {
         }
     }
 
+    /// Deletes a property from an object using a [`JSValue`] as the property key.
+    ///
+    /// Returns `true` if the property was deleted, `false` if the property was not present,
+    /// or it had [`JSPropertyAttributes::dont_delete`] set, or [`Err`] if an exception is thrown.
+    ///
+    /// This function is the same as performing `delete object[propertyKey](propertyKey)` from JavaScript.
     pub fn delete_property_for_key(&self, key: &JSValue) -> Result<bool, JSValue> {
         let mut exception = std::ptr::null();
 
@@ -580,6 +665,9 @@ impl<'a> AsJSValue<'a> for JSObject<'a> {
     }
 }
 
+/// A reference to an array of property names.
+///
+/// This is created by [`JSObject::get_property_names`].
 pub struct JSPropertyNameArray<'a> {
     internal: ul_sys::JSPropertyNameArrayRef,
     ctx: &'a JSContext,
@@ -595,10 +683,12 @@ impl<'a> JSPropertyNameArray<'a> {
         }
     }
 
+    /// Returns `true` if the array is empty.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
+    /// Returns the number of property names in the array.
     pub fn len(&self) -> usize {
         unsafe {
             self.ctx
@@ -608,7 +698,8 @@ impl<'a> JSPropertyNameArray<'a> {
         }
     }
 
-    pub fn get(&self, index: usize) -> JSString {
+    /// Gets a property name at a given index.
+    pub fn get(&self, index: usize) -> Option<JSString> {
         let name = unsafe {
             self.ctx
                 .lib
@@ -616,9 +707,14 @@ impl<'a> JSPropertyNameArray<'a> {
                 .JSPropertyNameArrayGetNameAtIndex(self.internal, index)
         };
 
-        JSString::copy_from_raw(self.ctx.lib.clone(), name)
+        if name.is_null() {
+            None
+        } else {
+            Some(JSString::copy_from_raw(self.ctx.lib.clone(), name))
+        }
     }
 
+    /// Converts the array into a [`Vec`] of property names.
     pub fn into_vec(self) -> Vec<String> {
         self.into()
     }
@@ -629,7 +725,10 @@ impl From<JSPropertyNameArray<'_>> for Vec<String> {
         let mut names = Vec::with_capacity(array.len());
 
         for i in 0..array.len() {
-            let name = array.get(i).to_string();
+            let name = array
+                .get(i)
+                .expect("Array should still have elements")
+                .to_string();
             names.push(name);
         }
 

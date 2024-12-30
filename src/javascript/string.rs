@@ -3,6 +3,9 @@ use std::{ffi::c_char, sync::Arc};
 
 use crate::Library;
 
+/// A JavaScript string.
+///
+/// Its internally a UTF16 character buffer.
 pub struct JSString {
     pub(crate) internal: ul_sys::JSStringRef,
     lib: Arc<Library>,
@@ -32,6 +35,7 @@ impl JSString {
         }
     }
 
+    /// Creates a new JavaScript string from a Rust string.
     pub fn new(lib: Arc<Library>, string: &str) -> Self {
         let cstring = std::ffi::CString::new(string).unwrap();
 
@@ -46,10 +50,12 @@ impl JSString {
         }
     }
 
+    /// Returns `true` if the string is empty.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
+    /// Returns the number of Unicode characters in the JavaScript string.
     pub fn len(&self) -> usize {
         unsafe { self.lib.ultralight().JSStringGetLength(self.internal) }
     }

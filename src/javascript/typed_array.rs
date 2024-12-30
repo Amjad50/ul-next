@@ -2,6 +2,7 @@ use std::ops::Deref;
 
 use super::{AsJSValue, JSContext, JSValue};
 
+/// An enum identifying the Typed Array type of a [`JSTypedArray`].
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum JSTypedArrayType {
@@ -20,11 +21,16 @@ pub enum JSTypedArrayType {
     BigUint64Array = ul_sys::JSTypedArrayType_kJSTypedArrayTypeBigUint64Array,
 }
 
+/// A JavaScript Typed Array object.
 pub struct JSTypedArray<'a> {
     pub(crate) value: JSValue<'a>,
 }
 
 impl<'a> JSTypedArray<'a> {
+    /// Creates a Javascript Typed Array object with the given number of elements
+    /// all initialized to zero.
+    ///
+    /// Returns [`Err`] if an exception occurred while creating the object.
     pub fn new(
         ctx: &'a JSContext,
         array_type: JSTypedArrayType,
@@ -51,6 +57,11 @@ impl<'a> JSTypedArray<'a> {
         }
     }
 
+    /// Creates a JavaScript Typed Array object from existing bytes buffer.
+    ///
+    /// This will copy the bytes and manages its memory.
+    ///
+    /// Returns [`Err`] if an exception occurred while creating the object.
     pub fn new_copy_from_bytes(
         ctx: &'a JSContext,
         array_type: JSTypedArrayType,
@@ -96,6 +107,9 @@ impl<'a> JSTypedArray<'a> {
         }
     }
 
+    /// Returns the length of a JavaScript Typed Array object.
+    ///
+    /// Returns [`Err`] if an exception occurred while getting the length.
     pub fn len(&self) -> Result<usize, JSValue<'a>> {
         let mut exception = std::ptr::null();
 
@@ -114,10 +128,16 @@ impl<'a> JSTypedArray<'a> {
         }
     }
 
+    /// Returns whether the JavaScript Typed Array object is empty.
+    ///
+    /// Returns [`Err`] if an exception occurred while getting the length.
     pub fn is_empty(&self) -> Result<bool, JSValue<'a>> {
         self.len().map(|len| len == 0)
     }
 
+    /// Returns the byte length of a JavaScript Typed Array object.
+    ///
+    /// Returns [`Err`] if an exception occurred while getting the byte length.
     pub fn byte_length(&self) -> Result<usize, JSValue<'a>> {
         let mut exception = std::ptr::null();
 
@@ -140,6 +160,9 @@ impl<'a> JSTypedArray<'a> {
         }
     }
 
+    /// Returns the byte offset of a JavaScript Typed Array object.
+    ///
+    /// Returns [`Err`] if an exception occurred while getting the byte offset.
     pub fn byte_offset(&self) -> Result<usize, JSValue<'a>> {
         let mut exception = std::ptr::null();
 
@@ -162,6 +185,10 @@ impl<'a> JSTypedArray<'a> {
         }
     }
 
+    /// Returns the type of a JavaScript Typed Array object.
+    ///
+    /// Returns [`Err`] if an exception occurred while getting the type,
+    /// or [`JSTypedArrayType::None`] if object isn't a Typed Array.
     pub fn ty(&self) -> Result<JSTypedArrayType, JSValue<'a>> {
         let mut exception = std::ptr::null();
 
