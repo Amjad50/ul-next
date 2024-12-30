@@ -48,6 +48,8 @@ pub mod view;
 #[cfg_attr(docsrs, doc(cfg(any(feature = "appcore_linked", feature = "loaded"))))]
 pub mod window;
 
+pub mod javascript;
+
 use std::{ffi::CStr, sync::Arc};
 
 #[cfg(any(feature = "appcore_linked", feature = "loaded"))]

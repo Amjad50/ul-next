@@ -1,10 +1,11 @@
 //! The View is a component used to load and display web content.
-use std::sync::Arc;
+use std::{ops::Deref, sync::Arc};
 
 use crate::{
     bitmap::BitmapFormat,
     error::CreationError,
     event::{KeyEvent, MouseEvent, ScrollEvent},
+    javascript::JSContext,
     rect::Rect,
     renderer::Session,
     string::UlString,
@@ -470,6 +471,37 @@ impl ViewConfigBuilder {
     }
 }
 
+/// An RAII implementation of a “scoped lock” of a pixel buffer for Javascript Context
+/// of [`View`].
+/// When this structure is dropped (falls out of scope), the lock will be unlocked.
+///
+/// This struct is created by [`View::lock_js_context`].
+///
+/// This can be used as [`Deref`] to access the underlying [`javascript::Context`].
+pub struct ViewJSContextGuard<'a> {
+    view: &'a View,
+    js_ctx: JSContext,
+}
+
+impl Deref for ViewJSContextGuard<'_> {
+    type Target = JSContext;
+
+    fn deref(&self) -> &Self::Target {
+        &self.js_ctx
+    }
+}
+
+impl Drop for ViewJSContextGuard<'_> {
+    fn drop(&mut self) {
+        unsafe {
+            self.view
+                .lib
+                .ultralight()
+                .ulViewUnlockJSContext(self.view.internal);
+        }
+    }
+}
+
 /// The View class is used to load and display web content.
 ///
 /// View is an offscreen web-page container that can be used to display web-content in your
@@ -671,13 +703,21 @@ impl View {
         }
     }
 
-    // TODO: add support for javascript context
-    //pub fn lock_js_context(&self) -> JsContext {
-    //  ul_string::ulViewLockJSContext(self.internal)
-    //}
+    /// Acquire the page's [`JSContext`] for use with JavaScriptCore API.
+    ///
+    /// Note: This call locks the context for the current thread. You should call
+    /// You should drop this so that the context is unlocked so that other threads
+    /// can use this context.
+    ///
+    /// The lock is recusive, it's okay to aquaire this multiple times, but you should drop
+    /// all the instances to unlock the context.
+    pub fn lock_js_context(&self) -> ViewJSContextGuard {
+        let ctx = unsafe { self.lib.ultralight().ulViewLockJSContext(self.internal) };
 
-    //pub fn javascript_vm(&self) {
-    //}
+        let js_ctx = JSContext::copy_from_raw(self.lib.clone(), ctx);
+
+        ViewJSContextGuard { view: self, js_ctx }
+    }
 
     /// Helper function to evaluate a raw string of JavaScript and return the result as a String.
     ///
