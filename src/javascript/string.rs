@@ -1,0 +1,96 @@
+use core::fmt;
+use std::{ffi::c_char, sync::Arc};
+
+use crate::Library;
+
+pub struct JSString {
+    pub(crate) internal: ul_sys::JSStringRef,
+    lib: Arc<Library>,
+}
+
+impl JSString {
+    pub(crate) fn from_raw(lib: Arc<Library>, string: ul_sys::JSStringRef) -> Self {
+        assert!(!string.is_null());
+
+        Self {
+            internal: string,
+            lib,
+        }
+    }
+
+    pub(crate) fn copy_from_raw(
+        lib: Arc<Library>,
+        string: *mut ul_sys::OpaqueJSString,
+    ) -> JSString {
+        assert!(!string.is_null());
+
+        let string = unsafe { lib.ultralight().JSStringRetain(string) };
+
+        Self {
+            internal: string,
+            lib,
+        }
+    }
+
+    pub fn new(lib: Arc<Library>, string: &str) -> Self {
+        let cstring = std::ffi::CString::new(string).unwrap();
+
+        let string = unsafe {
+            lib.ultralight()
+                .JSStringCreateWithUTF8CString(cstring.as_ptr())
+        };
+
+        Self {
+            internal: string,
+            lib,
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        unsafe { self.lib.ultralight().JSStringGetLength(self.internal) }
+    }
+}
+
+impl From<&JSString> for String {
+    fn from(string: &JSString) -> Self {
+        let max_size = unsafe {
+            string
+                .lib
+                .ultralight()
+                .JSStringGetMaximumUTF8CStringSize(string.internal)
+        };
+
+        let mut buffer: Vec<u8> = Vec::with_capacity(max_size as usize);
+
+        unsafe {
+            let actual_size = string.lib.ultralight().JSStringGetUTF8CString(
+                string.internal,
+                buffer.as_mut_ptr().cast::<c_char>(),
+                max_size,
+            );
+            buffer.set_len(actual_size - 1);
+        }
+
+        String::from_utf8(buffer).unwrap()
+    }
+}
+
+impl fmt::Debug for JSString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        String::from(self).fmt(f)
+    }
+}
+
+impl fmt::Display for JSString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        String::from(self).fmt(f)
+    }
+}
+
+impl Drop for JSString {
+    fn drop(&mut self) {
+        unsafe {
+            self.lib.ultralight().JSStringRelease(self.internal);
+        }
+    }
+}
