@@ -477,7 +477,7 @@ impl ViewConfigBuilder {
 ///
 /// This struct is created by [`View::lock_js_context`].
 ///
-/// This can be used as [`Deref`] to access the underlying [`javascript::Context`].
+/// This can be used as [`Deref`] to access the underlying [`JSContext`].
 pub struct ViewJSContextGuard<'a> {
     view: &'a View,
     js_ctx: JSContext,

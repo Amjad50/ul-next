@@ -1,3 +1,5 @@
+//! User-defined image source to display custom images on a web-page.
+
 use std::sync::Arc;
 
 use crate::{bitmap::Bitmap, error::CreationError, string::UlString, Library, Rect};
@@ -34,7 +36,7 @@ use crate::{bitmap::Bitmap, error::CreationError, string::UlString, Library, Rec
 /// and then create an ImageSource from that texture ID
 /// using [`ImageSource::create_from_texture`][ImageSource::create_from_texture].
 ///
-/// Next, you should register the [`ImageSource`] with [`ImageSourceProvider`]
+/// Next, you should register the [`ImageSource`] with [`image_source_provider::add_image_source`]
 /// using the identifier from the `.imgsrc` file.
 ///
 /// When the image element is drawn on the web-page, the library will draw geometry using the
@@ -49,7 +51,7 @@ use crate::{bitmap::Bitmap, error::CreationError, string::UlString, Library, Rec
 /// To composite your own bitmap on a web-page, you should create an [`ImageSource`] from a bitmap
 /// using [`ImageSource::create_from_bitmap`][ImageSource::create_from_bitmap].
 ///
-/// Next, you should register the [`ImageSource`] with [`ImageSourceProvider`]
+/// Next, you should register the [`ImageSource`] with [`image_source_provider::add_image_source`]
 /// using the identifier from the `.imgsrc` file.
 ///
 /// When the image element is drawn on the web-page, the library will sample this bitmap directly.
