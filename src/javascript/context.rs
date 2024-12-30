@@ -83,6 +83,26 @@ impl JSContext {
         }
     }
 
+    pub fn check_script_syntax(&self, script: &str) -> Result<bool, JSValue> {
+        let script = JSString::new(self.lib.clone(), script);
+        let mut exception = std::ptr::null();
+        let ret = unsafe {
+            self.lib.ultralight().JSCheckScriptSyntax(
+                self.internal,
+                script.internal,
+                std::ptr::null_mut(),
+                0,
+                &mut exception,
+            )
+        };
+
+        if !exception.is_null() {
+            return Err(JSValue::copy_from_raw(self, exception));
+        }
+
+        Ok(ret)
+    }
+
     pub fn garbage_collect(&self) {
         unsafe {
             self.lib.ultralight().JSGarbageCollect(self.internal);
