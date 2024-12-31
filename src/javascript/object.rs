@@ -1,3 +1,4 @@
+use core::fmt;
 use std::{
     ops::Deref,
     sync::{Arc, OnceLock},
@@ -70,6 +71,7 @@ impl JSPropertyAttributes {
 }
 
 /// A JavaScript object.
+#[derive(Clone, Debug)]
 pub struct JSObject<'a> {
     pub(crate) value: JSValue<'a>,
 }
@@ -733,6 +735,28 @@ impl From<JSPropertyNameArray<'_>> for Vec<String> {
         }
 
         names
+    }
+}
+
+impl Clone for JSPropertyNameArray<'_> {
+    fn clone(&self) -> Self {
+        let array = unsafe {
+            self.ctx
+                .lib
+                .ultralight()
+                .JSPropertyNameArrayRetain(self.internal)
+        };
+
+        Self {
+            internal: array,
+            ctx: self.ctx,
+        }
+    }
+}
+
+impl fmt::Debug for JSPropertyNameArray<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.clone().into_vec().fmt(f)
     }
 }
 

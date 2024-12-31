@@ -441,13 +441,28 @@ impl<'a> JSValue<'a> {
     }
 }
 
+impl Clone for JSValue<'_> {
+    fn clone(&self) -> Self {
+        unsafe {
+            self.ctx
+                .lib
+                .ultralight()
+                .JSValueProtect(self.ctx.internal, self.internal)
+        };
+
+        Self {
+            internal: self.internal,
+            ctx: self.ctx,
+        }
+    }
+}
+
 impl fmt::Debug for JSValue<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.is_undefined() {
-            write!(f, "Value::undefined({:p})", self.internal)
-        } else {
-            write!(f, "JSValue({:p})", self.internal)
-        }
+        f.debug_struct("JSValue")
+            .field("type", &self.get_type())
+            .field("repr", &self.to_json_string())
+            .finish()
     }
 }
 

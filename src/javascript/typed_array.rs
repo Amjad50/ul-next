@@ -22,6 +22,7 @@ pub enum JSTypedArrayType {
 }
 
 /// A JavaScript Typed Array object.
+#[derive(Clone, Debug)]
 pub struct JSTypedArray<'a> {
     pub(crate) value: JSValue<'a>,
 }

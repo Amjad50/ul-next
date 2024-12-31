@@ -1,3 +1,4 @@
+use core::fmt;
 use std::sync::Arc;
 
 use crate::Library;
@@ -141,6 +142,20 @@ impl JSContext {
         unsafe {
             self.lib.ultralight().JSGarbageCollect(self.internal);
         }
+    }
+}
+
+impl fmt::Debug for JSContext {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("JSContext")
+            .field("name", &self.name())
+            .finish()
+    }
+}
+
+impl Clone for JSContext {
+    fn clone(&self) -> Self {
+        Self::copy_from_raw(self.lib.clone(), self.internal)
     }
 }
 

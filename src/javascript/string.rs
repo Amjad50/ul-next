@@ -85,6 +85,17 @@ impl From<&JSString> for String {
     }
 }
 
+impl Clone for JSString {
+    fn clone(&self) -> Self {
+        let string = unsafe { self.lib.ultralight().JSStringRetain(self.internal) };
+
+        Self {
+            internal: string,
+            lib: self.lib.clone(),
+        }
+    }
+}
+
 impl fmt::Debug for JSString {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         String::from(self).fmt(f)
