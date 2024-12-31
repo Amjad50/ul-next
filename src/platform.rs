@@ -199,6 +199,9 @@ impl Drop for FontFile {
 ///
 /// ## Note
 ///
+/// > There is a bug in Ultralight right now, and we can't use custom Fontloader for now. So you
+/// > can ignore this for now.
+///
 /// AppCore uses a default OS-specific FontLoader implementation when you call [`App::new`].
 ///
 /// If you are using [`Renderer::create`], you can still use AppCore's implementation by calling
@@ -207,7 +210,6 @@ impl Drop for FontFile {
 ///
 /// [`App::new`]: crate::app::App::new
 /// [`Renderer::create`]: crate::renderer::Renderer::create
-/// [`platform::set_fontloader`]: set_fontloader
 pub trait FontLoader {
     /// Fallback font family name. Will be used if all other fonts fail to load.
     ///

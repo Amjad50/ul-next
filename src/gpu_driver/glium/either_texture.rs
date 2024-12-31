@@ -10,7 +10,7 @@ pub enum EitherSampler<'t> {
     Srgb2d(Sampler<'t, SrgbTexture2d>),
 }
 
-impl<'a> AsUniformValue for EitherSampler<'a> {
+impl AsUniformValue for EitherSampler<'_> {
     #[inline]
     fn as_uniform_value(&self) -> UniformValue {
         match self {

@@ -168,8 +168,10 @@ fn defines() {
 
     let bindings = common_builder()
         .header(header_path)
-        .allowlist_var("^UL.*|JS.*|ul.*|WK.*")
-        .allowlist_type("^UL.*|JS.*|ul.*|WK.*")
+        .allowlist_var("^UL.*|kJS.*|JS.*|ul.*|WK.*")
+        .allowlist_type("^UL.*|kJS.*|JS.*|ul.*|WK.*")
+        // this is `static extern` variable, we don't want others to use it
+        .blocklist_var("kJSClassDefinitionEmpty")
         .ignore_functions()
         .ignore_methods()
         .generate()

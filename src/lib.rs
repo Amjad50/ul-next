@@ -48,6 +48,8 @@ pub mod view;
 #[cfg_attr(docsrs, doc(cfg(any(feature = "appcore_linked", feature = "loaded"))))]
 pub mod window;
 
+pub mod javascript;
+
 use std::{ffi::CStr, sync::Arc};
 
 #[cfg(any(feature = "appcore_linked", feature = "loaded"))]
@@ -116,8 +118,8 @@ impl Library {
     /// # Safety
     ///
     /// `dlopen` native libraries is inherently unsafe. The safety guidelines
-    /// for [`Library::new()`][https://docs.rs/libloading/latest/libloading/struct.Library.html#method.new] and
-    ///     [`Library::get()`][https://docs.rs/libloading/latest/libloading/struct.Library.html#method.get] apply here.
+    /// for [`Library::new()`][<https://docs.rs/libloading/latest/libloading/struct.Library.html#method.new>] and
+    ///     [`Library::get()`][<https://docs.rs/libloading/latest/libloading/struct.Library.html#method.get>] apply here.
     ///
     /// No function loaded directly or indirectly from this [`Library`]
     /// may be called after it is [dropped][drop()].
@@ -143,8 +145,8 @@ impl Library {
     /// # Safety
     ///
     /// `dlopen` native libraries is inherently unsafe. The safety guidelines
-    /// for [`Library::new()`][https://docs.rs/libloading/latest/libloading/struct.Library.html#method.new] and
-    ///     [`Library::get()`][https://docs.rs/libloading/latest/libloading/struct.Library.html#method.get] apply here.
+    /// for [`Library::new()`][<https://docs.rs/libloading/latest/libloading/struct.Library.html#method.new>] and
+    ///     [`Library::get()`][<https://docs.rs/libloading/latest/libloading/struct.Library.html#method.get>] apply here.
     ///
     /// No function loaded directly or indirectly from this [`Library`]
     /// may be called after it is [dropped][drop()].
@@ -163,8 +165,8 @@ impl Library {
     /// # Safety
     ///
     /// `dlopen` native libraries is inherently unsafe. The safety guidelines
-    /// for [`Library::new()`][https://docs.rs/libloading/latest/libloading/struct.Library.html#method.new] and
-    ///     [`Library::get()`][https://docs.rs/libloading/latest/libloading/struct.Library.html#method.get] apply here.
+    /// for [`Library::new()`][<https://docs.rs/libloading/latest/libloading/struct.Library.html#method.new>] and
+    ///     [`Library::get()`][<https://docs.rs/libloading/latest/libloading/struct.Library.html#method.get>] apply here.
     ///
     /// No function loaded directly or indirectly from this [`Library`]
     /// may be called after it is [dropped][drop()].
@@ -190,8 +192,8 @@ impl Library {
     /// # Safety
     ///
     /// `dlopen` native libraries is inherently unsafe. The safety guidelines
-    /// for [`Library::new()`][https://docs.rs/libloading/latest/libloading/struct.Library.html#method.new] and
-    ///     [`Library::get()`][https://docs.rs/libloading/latest/libloading/struct.Library.html#method.get] apply here.
+    /// for [`Library::new()`][<https://docs.rs/libloading/latest/libloading/struct.Library.html#method.new>] and
+    ///     [`Library::get()`][<https://docs.rs/libloading/latest/libloading/struct.Library.html#method.get>] apply here.
     ///
     /// No function loaded directly or indirectly from this [`Library`]
     /// may be called after it is [dropped][drop()].
